@@ -54,32 +54,49 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 };
 
 const ToastItem: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onClose }) => {
-    const icons = {
-        success: <CheckCircle className="text-success" size={20} />,
-        error: <XCircle className="text-destructive" size={20} />,
-        info: <AlertCircle className="text-primary" size={20} />,
+    const styles = {
+        success: {
+            icon: <CheckCircle className="text-green-600" size={20} />,
+            bg: 'bg-green-50/80 backdrop-blur-sm',
+            border: 'border border-green-200/50',
+            text: 'text-green-900',
+            button: 'text-green-600 hover:bg-green-100/50',
+        },
+        error: {
+            icon: <XCircle className="text-red-600" size={20} />,
+            bg: 'bg-red-50/80 backdrop-blur-sm',
+            border: 'border border-red-200/50',
+            text: 'text-red-900',
+            button: 'text-red-600 hover:bg-red-100/50',
+        },
+        info: {
+            icon: <AlertCircle className="text-blue-600" size={20} />,
+            bg: 'bg-blue-50/80 backdrop-blur-sm',
+            border: 'border border-blue-200/50',
+            text: 'text-blue-900',
+            button: 'text-blue-600 hover:bg-blue-100/50',
+        },
     };
 
-    const backgrounds = {
-        success: 'bg-success/10 border-success/20',
-        error: 'bg-destructive/10 border-destructive/20',
-        info: 'bg-primary/10 border-primary/20',
-    };
+    const style = styles[toast.type];
 
     return (
         <div
             className={`
-        flex items-center gap-3 p-4 rounded-lg border shadow-lg
-        bg-card backdrop-blur-sm
-        animate-in slide-in-from-right duration-300
-        ${backgrounds[toast.type]}
-      `}
+                flex items-center gap-3 p-4 rounded-xl shadow-lg
+                ${style.bg} ${style.border}
+                animate-slideIn duration-300
+            `}
         >
-            {icons[toast.type]}
-            <p className="flex-1 text-sm font-medium text-card-foreground">{toast.message}</p>
+            <div className="flex-shrink-0">
+                {style.icon}
+            </div>
+            <p className={`flex-1 text-sm font-medium ${style.text}`}>
+                {toast.message}
+            </p>
             <button
                 onClick={onClose}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className={`flex-shrink-0 p-1 rounded-lg transition-all ${style.button}`}
             >
                 <X size={16} />
             </button>

@@ -42,7 +42,7 @@ const INITIAL_MESSAGE: Message = {
 export default function AIAssistantPage() {
     const { showToast } = useToast();
     
-    // Session-based state (cleared on close/clear)
+    // Session-based state (persists across navigation, cleared on browser close or manual clear)
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +52,32 @@ export default function AIAssistantPage() {
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Load chat history from sessionStorage on mount
+    useEffect(() => {
+        try {
+            const savedMessages = sessionStorage.getItem('ai_chat_history');
+            if (savedMessages) {
+                const parsed = JSON.parse(savedMessages);
+                const messagesWithDates = parsed.map((msg: any) => ({
+                    ...msg,
+                    timestamp: new Date(msg.timestamp)
+                }));
+                setMessages(messagesWithDates);
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+        }
+    }, []);
+
+    // Save chat history to sessionStorage whenever messages change
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('ai_chat_history', JSON.stringify(messages));
+        } catch (error) {
+            console.error('Error saving chat history:', error);
+        }
+    }, [messages]);
 
     // Auto-scroll to bottom
     const scrollToBottom = useCallback(() => {
@@ -86,6 +112,13 @@ export default function AIAssistantPage() {
         setInput('');
         setIsLoading(false);
         setIsStreaming(false);
+        
+        // Clear sessionStorage
+        try {
+            sessionStorage.removeItem('ai_chat_history');
+        } catch (error) {
+            console.error('Error clearing chat history:', error);
+        }
         
         showToast('success', 'Chat cleared');
     }, [showToast]);
@@ -147,14 +180,7 @@ export default function AIAssistantPage() {
             setIsStreaming(true);
 
             if (reader) {
-                // Create assistant message placeholder
-                assistantId = (Date.now() + 1).toString();
-                setMessages(prev => [...prev, {
-                    id: assistantId,
-                    role: 'assistant',
-                    content: '',
-                    timestamp: new Date(),
-                }]);
+                let firstChunk = true;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -169,12 +195,25 @@ export default function AIAssistantPage() {
                                 const data = JSON.parse(line.slice(6));
                                 
                                 if (data.chunk) {
-                                    fullAnswer += data.chunk;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantId
-                                            ? { ...msg, content: fullAnswer }
-                                            : msg
-                                    ));
+                                    // Create assistant message only on first chunk
+                                    if (firstChunk) {
+                                        firstChunk = false;
+                                        assistantId = (Date.now() + 1).toString();
+                                        fullAnswer = data.chunk;
+                                        setMessages(prev => [...prev, {
+                                            id: assistantId,
+                                            role: 'assistant',
+                                            content: fullAnswer,
+                                            timestamp: new Date(),
+                                        }]);
+                                    } else {
+                                        fullAnswer += data.chunk;
+                                        setMessages(prev => prev.map(msg =>
+                                            msg.id === assistantId
+                                                ? { ...msg, content: fullAnswer }
+                                                : msg
+                                        ));
+                                    }
                                 }
                                 
                                 if (data.done) {
@@ -356,7 +395,60 @@ export default function AIAssistantPage() {
                                         : 'bg-white border shadow-sm text-gray-800'
                                 }`}
                             >
-                                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                                {/* Parse content to separate answer from sources */}
+                                {(() => {
+                                    const parts = message.content.split('📚 **Sources:**');
+                                    const answer = parts[0];
+                                    const sources = parts[1];
+                                    
+                                    return (
+                                        <>
+                                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{answer}</p>
+                                            
+                                            {/* Display sources if present */}
+                                            {sources && (
+                                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                                    <p className="text-xs font-semibold text-gray-600 mb-2">📚 Sources:</p>
+                                                    <div className="space-y-2">
+                                                        {(() => {
+                                                        const sourceLines = sources.split('\n').filter(line => line.trim());
+                                                        const uniqueSources = new Map();
+                                                        
+                                                        sourceLines.forEach((line) => {
+                                                            const match = line.match(/\[(\d+)\]\s*\*\*(.+?)\*\*/);
+                                                            if (match) {
+                                                                const [, num, filename] = match;
+                                                                // Use filename as key to deduplicate
+                                                                if (!uniqueSources.has(filename)) {
+                                                                    uniqueSources.set(filename, { num, filename, line });
+                                                                }
+                                                            }
+                                                        });
+                                                        
+                                                        return Array.from(uniqueSources.values()).map((source, idx) => (
+                                                            <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="font-medium text-gray-700">{source.filename}</span>
+                                                                    <button
+                                                                        onClick={() => window.open(`http://localhost:8000/documents/${source.num}/view`, '_blank')}
+                                                                        className="text-blue-600 hover:text-blue-700 underline text-xs"
+                                                                    >
+                                                                        View
+                                                                    </button>
+                                                                </div>
+                                                                {source.line.includes('Preview:') && (
+                                                                    <p className="text-gray-600 mt-1 italic">{source.line.split('Preview:')[1]?.trim()}</p>
+                                                                )}
+                                                            </div>
+                                                        ));
+                                                    })()}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                                
                                 <p className={`text-xs mt-2 ${
                                     message.role === 'user' ? 'text-blue-200' : 'text-gray-400'
                                 }`}>
@@ -372,17 +464,22 @@ export default function AIAssistantPage() {
                         </div>
                     ))}
 
-                    {/* Loading indicator */}
-                    {isLoading && (
-                        <div className="flex gap-3">
+                    {/* Loading indicator - Show only one */}
+                    {(isLoading || isStreaming) && (
+                        <div className="flex gap-3 animate-slideIn">
                             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                                 <Bot size={16} className="text-blue-600" />
                             </div>
-                            <div className="bg-white border shadow-sm rounded-2xl px-4 py-3">
-                                <div className="flex gap-1">
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <div className="bg-white border shadow-sm rounded-2xl px-4 py-3 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex gap-1">
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium">
+                                        {isLoading && !isStreaming ? 'Searching documents...' : 'Generating response...'}
+                                    </p>
                                 </div>
                             </div>
                         </div>

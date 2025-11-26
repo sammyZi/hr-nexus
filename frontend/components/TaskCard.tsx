@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { MoreVertical, Trash2, Edit } from 'lucide-react';
 import { Task, taskApi } from '@/lib/api';
 import { useToast } from './ui/Toast';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface TaskCardProps {
     task: Task;
@@ -26,6 +27,7 @@ const PILLAR_COLORS: Record<string, string> = {
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate }) => {
     const { showToast } = useToast();
     const [showMenu, setShowMenu] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleStatusChange = async (newStatus: string) => {
@@ -39,13 +41,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate }) => {
         }
     };
 
-    const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this task?')) return;
+    const handleDeleteClick = () => {
+        setShowMenu(false);
+        setShowDeleteConfirm(true);
+    };
 
+    const handleConfirmDelete = async () => {
         setIsDeleting(true);
         try {
             await taskApi.delete(task.id);
             showToast('success', 'Task deleted successfully');
+            setShowDeleteConfirm(false);
             onUpdate();
         } catch (error) {
             showToast('error', 'Failed to delete task');
@@ -92,9 +98,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate }) => {
                                 />
                                 <div className="absolute right-0 top-8 z-20 bg-card border rounded-lg shadow-lg py-1 min-w-[120px]">
                                     <button
-                                        onClick={handleDelete}
+                                        onClick={handleDeleteClick}
                                         disabled={isDeleting}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                     >
                                         <Trash2 size={14} />
                                         Delete
@@ -128,6 +134,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate }) => {
                     ))}
                 </select>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Delete Task"
+                message={`Are you sure you want to delete "${task.title}"? This action cannot be undone.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                isDangerous={true}
+                isLoading={isDeleting}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
         </div>
     );
 };

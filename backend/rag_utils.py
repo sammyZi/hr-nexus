@@ -55,12 +55,12 @@ class Config:
     EMBEDDING_MODEL = "nomic-embed-text"
     
     # Chunking Settings (optimized for speed + quality)
-    CHUNK_SIZE = 1000  # Smaller chunks = faster processing
-    CHUNK_OVERLAP = 100
+    CHUNK_SIZE = 1500  # Larger chunks to capture complete sections/characteristics
+    CHUNK_OVERLAP = 200  # More overlap to ensure context continuity
     
     # Search Settings
-    SEARCH_K = 5  # Number of documents to retrieve
-    SIMILARITY_THRESHOLD = 1.5  # Max distance (lower = stricter)
+    SEARCH_K = 10  # Number of documents to retrieve (increased for better context coverage)
+    SIMILARITY_THRESHOLD = 1000.0  # Max distance (Chroma returns large numbers, not 0-1)
     
     # LLM Settings
     TEMPERATURE = 0.1  # Low for factual responses
@@ -155,7 +155,7 @@ class DocumentProcessor:
         return chunks
     
     def index_chunks(self, chunks: List[Any]) -> int:
-        """Index chunks into vector database with batching"""
+        """Index chunks into vector database with parallel batching"""
         if not chunks:
             return 0
         
@@ -171,13 +171,34 @@ class DocumentProcessor:
                 embedding_function=self.embeddings
             )
         
-        # Batch indexing for performance
+        # Parallel batch indexing for faster processing
         total = len(chunks)
+        
+        def index_batch(batch_data):
+            """Index a batch of chunks"""
+            batch_idx, batch = batch_data
+            try:
+                vectordb.add_documents(batch)
+                progress = min((batch_idx + 1) * Config.BATCH_SIZE, total)
+                print(f"📊 Indexed {progress}/{total} chunks ({int(progress/total*100)}%)", flush=True)
+                return True
+            except Exception as e:
+                print(f"❌ Error indexing batch {batch_idx}: {e}", flush=True)
+                return False
+        
+        # Create batches
+        batches = []
         for i in range(0, total, Config.BATCH_SIZE):
             batch = chunks[i:i + Config.BATCH_SIZE]
-            vectordb.add_documents(batch)
-            progress = min(i + Config.BATCH_SIZE, total)
-            print(f"📊 Indexed {progress}/{total} chunks ({int(progress/total*100)}%)", flush=True)
+            batch_idx = i // Config.BATCH_SIZE
+            batches.append((batch_idx, batch))
+        
+        # Process batches in parallel
+        with ThreadPoolExecutor(max_workers=Config.MAX_WORKERS) as executor:
+            results = list(executor.map(index_batch, batches))
+        
+        success_count = sum(1 for r in results if r)
+        print(f"✅ Successfully indexed {success_count}/{len(batches)} batches", flush=True)
         
         return total
 
@@ -209,24 +230,28 @@ class SearchEngine:
     def search(self, query: str, k: int = None) -> List[SearchResult]:
         """Search for relevant documents with citations"""
         if not self.vectordb:
+            print("❌ Vector database not found", flush=True)
             return []
         
         k = k or Config.SEARCH_K
         
-        # Search with scores
+        # Search with scores - Chroma returns top K results sorted by relevance
         results_with_scores = self.vectordb.similarity_search_with_score(query, k=k)
+        
+        print(f"🔎 Raw search results: {len(results_with_scores)} found", flush=True)
+        for i, (doc, score) in enumerate(results_with_scores):
+            print(f"  [{i+1}] Score: {score:.3f}, File: {doc.metadata.get('original_filename')}, Preview: {doc.page_content[:80]}...", flush=True)
         
         search_results = []
         for doc, score in results_with_scores:
-            # Filter by similarity threshold
-            if score > Config.SIMILARITY_THRESHOLD:
-                continue
+            # Accept all results from Chroma since they're already sorted by relevance
+            # Chroma returns results in order of relevance, so we just take the top K
             
             citation = Citation(
                 document_name=doc.metadata.get('original_filename', 'Unknown'),
                 page_number=doc.metadata.get('page', None),
                 chunk_index=doc.metadata.get('chunk_index', 0),
-                relevance_score=round(1 - (score / 2), 3),  # Convert to 0-1 scale
+                relevance_score=round(max(0, 1 - (score / 100)), 3),  # Normalize score
                 content_preview=doc.page_content[:100] + "..."
             )
             
@@ -236,6 +261,7 @@ class SearchEngine:
                 metadata=doc.metadata
             ))
         
+        print(f"✅ Returning {len(search_results)} documents", flush=True)
         return search_results
 
 
@@ -281,14 +307,9 @@ class ResponseGenerator:
                 f"{m['role'].upper()}: {m['content'][:200]}" for m in recent
             ])
         
-        prompt = f"""You are a helpful assistant. Answer questions using ONLY the provided document context.
+        prompt = f"""You are a helpful HR assistant. Your job is to answer questions based ONLY on the provided document context.
 
-RULES:
-1. Use ONLY information from the provided context
-2. Include citation numbers [1], [2], etc. when referencing information
-3. If the context doesn't contain the answer, say "I couldn't find this information in the documents."
-4. Be concise and accurate
-5. Never make up information
+IMPORTANT: The context below contains relevant information. Use it to answer the question comprehensively.
 
 CONTEXT FROM DOCUMENTS:
 {context}
@@ -296,7 +317,14 @@ CONTEXT FROM DOCUMENTS:
 
 QUESTION: {query}
 
-ANSWER (with citations):"""
+INSTRUCTIONS:
+- Answer the question using ALL relevant information in the context above
+- Include citation numbers [1], [2], etc. when referencing information
+- Provide a comprehensive answer covering all points mentioned in the context
+- Be direct and thorough
+- Do not make up information
+
+ANSWER:"""
         
         return prompt
     
@@ -308,7 +336,10 @@ ANSWER (with citations):"""
         lines = ["\n\n📚 **Sources:**"]
         for i, c in enumerate(citations):
             page_info = f", Page {c.page_number}" if c.page_number else ""
-            lines.append(f"[{i+1}] {c.document_name}{page_info} (Relevance: {int(c.relevance_score*100)}%)")
+            relevance = int(c.relevance_score*100) if c.relevance_score > 0 else 100
+            lines.append(f"[{i+1}] **{c.document_name}**{page_info} (Relevance: {relevance}%)")
+            lines.append(f"    📄 Preview: {c.content_preview}")
+            lines.append(f"    🔗 [View Document](#view-doc-{i+1})")
         
         return "\n".join(lines)
     
@@ -522,7 +553,10 @@ def get_document_count() -> int:
     """Get the number of documents in the database"""
     search_engine = get_search_engine()
     if search_engine.vectordb:
-        return search_engine.vectordb._collection.count()
+        try:
+            return search_engine.vectordb._collection.count()
+        except Exception as e:
+            print(f"Error getting document count: {e}")
     return 0
 
 
@@ -536,3 +570,13 @@ def delete_document(file_path: str) -> bool:
         except Exception as e:
             print(f"Error deleting document: {e}")
     return False
+
+
+def test_search(query: str) -> None:
+    """Test search functionality"""
+    print(f"\n🧪 Testing search for: '{query}'", flush=True)
+    search_engine = get_search_engine()
+    results = search_engine.search(query)
+    print(f"📊 Found {len(results)} results", flush=True)
+    for i, result in enumerate(results):
+        print(f"  [{i+1}] {result.citation.document_name}: {result.content[:100]}...", flush=True)
