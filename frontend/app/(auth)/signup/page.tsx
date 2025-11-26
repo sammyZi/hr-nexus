@@ -1,36 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { Eye, EyeOff, UserPlus, Sparkles, Check } from "lucide-react";
+import { authApi } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import api from "@/lib/api";
 
-export default function SignupPage() {
+export default function SignUpPage() {
     const router = useRouter();
     const { showToast } = useToast();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
 
-    useEffect(() => {
-        // If already logged in, redirect to dashboard
-        const token = localStorage.getItem("access_token");
-        if (token) {
-            router.push("/dashboard");
-        }
-    }, [router]);
+    const passwordRequirements = [
+        { label: "At least 8 characters", met: password.length >= 8 },
+        { label: "Contains a number", met: /\d/.test(password) },
+        { label: "Passwords match", met: password === confirmPassword && password.length > 0 },
+    ];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (password !== confirmPassword) {
+            showToast("error", "Passwords do not match");
+            return;
+        }
+
+        if (password.length < 8) {
+            showToast("error", "Password must be at least 8 characters");
+            return;
+        }
+
         setLoading(true);
 
         try {
-            await api.post("/auth/signup", { email, password });
-            setSuccess(true);
-            showToast("success", "Account created! Check your email to verify.");
+            const response = await authApi.signup({ email, password });
+            localStorage.setItem("access_token", response.access_token);
+            showToast("success", "Account created successfully!");
+            router.push("/dashboard");
         } catch (error: any) {
             const message = error.response?.data?.detail || "Failed to create account";
             showToast("error", message);
@@ -39,102 +50,162 @@ export default function SignupPage() {
         }
     };
 
-    if (success) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white px-4">
-                <div className="w-full max-w-md text-center">
-                    <div className="bg-white rounded-lg border border-gray-200 p-10 shadow-sm">
-                        <div className="mb-6 flex justify-center">
-                            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
+    return (
+        <div className="min-h-screen flex">
+            {/* Left Panel - Branding */}
+            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 p-12 flex-col justify-between relative overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-72 h-72 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+                
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                            <span className="text-white font-bold text-xl">H</span>
                         </div>
-                        <h2 className="text-2xl font-semibold text-gray-900 mb-3">Check your email</h2>
-                        <p className="text-gray-600 mb-6">
-                            We sent a verification link to <span className="font-medium text-gray-900">{email}</span>
-                        </p>
-                        <Link href="/signin" className="text-blue-600 font-medium hover:underline">
-                            Back to sign in
-                        </Link>
+                        <span className="text-white text-2xl font-bold">HR Nexus</span>
                     </div>
                 </div>
-            </div>
-        );
-    }
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-white px-4">
-            <div className="w-full max-w-md">
-                {/* Logo */}
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                        HR Nexus
+                <div className="relative z-10 space-y-6">
+                    <h1 className="text-4xl font-bold text-white leading-tight">
+                        Start Your Journey<br />with AI-Powered HR
                     </h1>
-                    <p className="text-sm text-gray-600">
-                        Create your account
-                    </p>
+                    <div className="space-y-4">
+                        {[
+                            "Upload and search documents instantly",
+                            "Get AI-powered answers with citations",
+                            "Manage all HR operations in one place",
+                        ].map((feature, index) => (
+                            <div key={index} className="flex items-center gap-3 text-white/90">
+                                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                                    <Check size={14} />
+                                </div>
+                                <span>{feature}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Card */}
-                <div className="bg-white rounded-lg border border-gray-200 p-10 shadow-sm">
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                Email
-                            </label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
-                                placeholder="Email"
-                            />
+                <div className="relative z-10 text-purple-200 text-sm">
+                    © 2024 HR Nexus. All rights reserved.
+                </div>
+            </div>
+
+            {/* Right Panel - Form */}
+            <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+                <div className="w-full max-w-md">
+                    {/* Mobile Logo */}
+                    <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <span className="text-white font-bold text-xl">H</span>
+                        </div>
+                        <span className="text-gray-900 text-2xl font-bold">HR Nexus</span>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8">
+                        <div className="text-center mb-8">
+                            <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
+                            <p className="text-gray-500 mt-2">Get started with HR Nexus</p>
                         </div>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
-                                placeholder="Password (min 6 characters)"
-                            />
-                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="you@company.com"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                    required
+                                />
+                            </div>
 
-                        <Button
-                            type="submit"
-                            className="w-full py-3 text-base bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                                    Creating account...
-                                </span>
-                            ) : (
-                                "Create account"
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all pr-12"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Confirm Password
+                                </label>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                    required
+                                />
+                            </div>
+
+                            {/* Password Requirements */}
+                            {password && (
+                                <div className="space-y-2">
+                                    {passwordRequirements.map((req, index) => (
+                                        <div key={index} className="flex items-center gap-2 text-sm">
+                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                                req.met ? 'bg-green-500' : 'bg-gray-200'
+                                            }`}>
+                                                {req.met && <Check size={10} className="text-white" />}
+                                            </div>
+                                            <span className={req.met ? 'text-green-600' : 'text-gray-500'}>
+                                                {req.label}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
-                        </Button>
-                    </form>
 
-                    <div className="mt-6 text-center">
-                        <p className="text-sm text-gray-600">
+                            <button
+                                type="submit"
+                                disabled={loading || !passwordRequirements.every(r => r.met)}
+                                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <UserPlus size={20} />
+                                        Create Account
+                                    </>
+                                )}
+                            </button>
+                        </form>
+
+                        <p className="mt-6 text-center text-sm text-gray-500">
                             Already have an account?{" "}
-                            <Link href="/signin" className="text-blue-600 font-medium hover:underline">
+                            <Link href="/signin" className="text-indigo-600 hover:text-indigo-700 font-medium">
                                 Sign in
                             </Link>
                         </p>
                     </div>
+
+                    <p className="mt-6 text-center text-xs text-gray-400">
+                        By creating an account, you agree to our Terms of Service and Privacy Policy
+                    </p>
                 </div>
             </div>
         </div>

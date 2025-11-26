@@ -19,10 +19,10 @@ export const Button: React.FC<ButtonProps> = ({
     const baseStyles = 'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
-        primary: 'bg-primary text-primary-foreground hover:opacity-90 focus:ring-primary shadow-md hover:shadow-lg',
-        secondary: 'bg-muted text-muted-foreground hover:bg-muted/80 focus:ring-muted',
-        destructive: 'bg-destructive text-white hover:opacity-90 focus:ring-destructive shadow-md',
-        ghost: 'hover:bg-muted text-foreground',
+        primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-md hover:shadow-lg',
+        secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 border border-gray-200',
+        destructive: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-md',
+        ghost: 'hover:bg-gray-100 text-gray-700',
     };
 
     const sizes = {
@@ -31,9 +31,15 @@ export const Button: React.FC<ButtonProps> = ({
         lg: 'px-6 py-3 text-lg',
     };
 
+    // If className contains custom styles, use them instead of variant
+    const useCustomStyles = className.includes('bg-') || className.includes('text-');
+    const finalClassName = useCustomStyles 
+        ? `${baseStyles} ${sizes[size]} ${className}`
+        : `${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`;
+
     return (
         <button
-            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+            className={finalClassName}
             disabled={disabled || isLoading}
             {...props}
         >

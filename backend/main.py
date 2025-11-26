@@ -16,7 +16,7 @@ import asyncio
 from models import Base, User, Task, TaskCategory, UserCreate, UserLogin, Token, TaskCreate, TaskResponse
 from document_models import Document, DocumentResponse
 from email_utils import send_verification_email
-from rag_utils import process_document, get_answer, get_answer_with_fallback
+from rag_utils import process_document, get_answer_with_fallback
 
 load_dotenv()
 
