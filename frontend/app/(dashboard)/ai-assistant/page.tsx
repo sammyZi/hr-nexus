@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Upload, Bot, User, Trash2, FileText, X } from "lucide-react";
+import { Send, Upload, Bot, User, Trash2, FileText, X, Square, ArrowDown, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FileUpload } from "@/components/ui/FileUpload";
 import { useToast } from "@/components/ui/Toast";
+import { MessageContent } from "@/components/MessageContent";
 
 // ============================================================================
 // TYPES
@@ -51,7 +52,9 @@ export default function AIAssistantPage() {
     const [uploading, setUploading] = useState(false);
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const [userScrolledUp, setUserScrolledUp] = useState(false);
 
     // Load chat history from sessionStorage on mount
     useEffect(() => {
@@ -79,14 +82,33 @@ export default function AIAssistantPage() {
         }
     }, [messages]);
 
-    // Auto-scroll to bottom
+    // Auto-scroll to bottom (only if user hasn't scrolled up)
     const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, []);
+        if (!userScrolledUp) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [userScrolledUp]);
 
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
+
+    // Detect when user scrolls up
+    const handleScroll = useCallback(() => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+        
+        setUserScrolledUp(!isAtBottom);
+    }, []);
+
+    // Scroll to bottom helper
+    const handleScrollToBottom = useCallback(() => {
+        setUserScrolledUp(false);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
 
     // Cleanup on unmount (session end)
     useEffect(() => {
@@ -101,6 +123,16 @@ export default function AIAssistantPage() {
     // HANDLERS
     // ========================================================================
 
+    const handleStopStreaming = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+        setIsStreaming(false);
+        showToast('info', 'Response stopped');
+    }, [showToast]);
+
     const handleClearChat = useCallback(() => {
         // Abort any ongoing request
         if (abortControllerRef.current) {
@@ -112,6 +144,7 @@ export default function AIAssistantPage() {
         setInput('');
         setIsLoading(false);
         setIsStreaming(false);
+        setUserScrolledUp(false);
         
         // Clear sessionStorage
         try {
@@ -375,7 +408,11 @@ export default function AIAssistantPage() {
             </header>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto">
+            <div 
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto"
+            >
                 <div className="max-w-3xl mx-auto py-6 px-4 space-y-4">
                     {messages.map((message) => (
                         <div
@@ -395,61 +432,9 @@ export default function AIAssistantPage() {
                                         : 'bg-white border shadow-sm text-gray-800'
                                 }`}
                             >
-                                {/* Parse content to separate answer from sources */}
-                                {(() => {
-                                    const parts = message.content.split('📚 **Sources:**');
-                                    const answer = parts[0];
-                                    const sources = parts[1];
-                                    
-                                    return (
-                                        <>
-                                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{answer}</p>
-                                            
-                                            {/* Display sources if present */}
-                                            {sources && (
-                                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                                    <p className="text-xs font-semibold text-gray-600 mb-2">📚 Sources:</p>
-                                                    <div className="space-y-2">
-                                                        {(() => {
-                                                        const sourceLines = sources.split('\n').filter(line => line.trim());
-                                                        const uniqueSources = new Map();
-                                                        
-                                                        sourceLines.forEach((line) => {
-                                                            const match = line.match(/\[(\d+)\]\s*\*\*(.+?)\*\*/);
-                                                            if (match) {
-                                                                const [, num, filename] = match;
-                                                                // Use filename as key to deduplicate
-                                                                if (!uniqueSources.has(filename)) {
-                                                                    uniqueSources.set(filename, { num, filename, line });
-                                                                }
-                                                            }
-                                                        });
-                                                        
-                                                        return Array.from(uniqueSources.values()).map((source, idx) => (
-                                                            <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="font-medium text-gray-700">{source.filename}</span>
-                                                                    <button
-                                                                        onClick={() => window.open(`http://localhost:8000/documents/${source.num}/view`, '_blank')}
-                                                                        className="text-blue-600 hover:text-blue-700 underline text-xs"
-                                                                    >
-                                                                        View
-                                                                    </button>
-                                                                </div>
-                                                                {source.line.includes('Preview:') && (
-                                                                    <p className="text-gray-600 mt-1 italic">{source.line.split('Preview:')[1]?.trim()}</p>
-                                                                )}
-                                                            </div>
-                                                        ));
-                                                    })()}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    );
-                                })()}
+                                <MessageContent content={message.content} role={message.role} isInitial={message.id === '1'} />
                                 
-                                <p className={`text-xs mt-2 ${
+                                <p className={`text-xs mt-3 ${
                                     message.role === 'user' ? 'text-blue-200' : 'text-gray-400'
                                 }`}>
                                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -489,6 +474,17 @@ export default function AIAssistantPage() {
                 </div>
             </div>
 
+            {/* Floating scroll to bottom button - shows when user scrolled up */}
+            {userScrolledUp && (
+                <button
+                    onClick={handleScrollToBottom}
+                    className="fixed bottom-32 right-8 w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50"
+                    title="Scroll to bottom"
+                >
+                    <ArrowDown size={20} />
+                </button>
+            )}
+
             {/* Input */}
             <div className="border-t bg-white px-4 py-4">
                 <div className="max-w-3xl mx-auto">
@@ -502,13 +498,23 @@ export default function AIAssistantPage() {
                             className="flex-1 px-4 py-3 rounded-xl border bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                             disabled={isLoading || isStreaming}
                         />
-                        <Button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isLoading || isStreaming}
-                            className="px-4"
-                        >
-                            <Send size={20} />
-                        </Button>
+                        {(isLoading || isStreaming) ? (
+                            <button
+                                onClick={handleStopStreaming}
+                                className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
+                            >
+                                <StopCircle size={20} />
+                                <span>Stop</span>
+                            </button>
+                        ) : (
+                            <Button
+                                onClick={handleSend}
+                                disabled={!input.trim()}
+                                className="px-4"
+                            >
+                                <Send size={20} />
+                            </Button>
+                        )}
                     </div>
                     <p className="text-xs text-gray-400 mt-2 text-center">
                         Session-based chat • Context cleared on page close or Clear Chat

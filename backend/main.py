@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -189,14 +189,18 @@ def update_task(task_id: int, task: TaskCreate, db: Session = Depends(get_db)):
     return db_task
 
 @app.patch("/tasks/{task_id}/status")
-def update_task_status(task_id: int, status: str, db: Session = Depends(get_db)):
+def update_task_status(task_id: int, status: str = Query(...), db: Session = Depends(get_db)):
+    print(f"[TASK] Updating task {task_id} status to: {status}", flush=True)
     db_task = db.query(Task).filter(Task.id == task_id).first()
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     
+    old_status = db_task.status
     db_task.status = status
     db.commit()
-    return {"message": "Task status updated", "task_id": task_id, "status": status}
+    db.refresh(db_task)
+    print(f"[TASK] Task {task_id} status changed: {old_status} -> {db_task.status}", flush=True)
+    return {"message": "Task status updated", "task_id": task_id, "status": db_task.status}
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
