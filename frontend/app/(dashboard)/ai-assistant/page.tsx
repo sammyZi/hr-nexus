@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Upload, Bot, User, Trash2, FileText, X } from "lucide-react";
+import { Send, Upload, Bot, User, Trash2, FileText, X, Square, ArrowDown, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FileUpload } from "@/components/ui/FileUpload";
 import { useToast } from "@/components/ui/Toast";
+import { MessageContent } from "@/components/MessageContent";
 
 // ============================================================================
 // TYPES
@@ -42,7 +43,7 @@ const INITIAL_MESSAGE: Message = {
 export default function AIAssistantPage() {
     const { showToast } = useToast();
     
-    // Session-based state (cleared on close/clear)
+    // Session-based state (persists across navigation, cleared on browser close or manual clear)
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -51,16 +52,63 @@ export default function AIAssistantPage() {
     const [uploading, setUploading] = useState(false);
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const [userScrolledUp, setUserScrolledUp] = useState(false);
 
-    // Auto-scroll to bottom
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Load chat history from sessionStorage on mount
+    useEffect(() => {
+        try {
+            const savedMessages = sessionStorage.getItem('ai_chat_history');
+            if (savedMessages) {
+                const parsed = JSON.parse(savedMessages);
+                const messagesWithDates = parsed.map((msg: any) => ({
+                    ...msg,
+                    timestamp: new Date(msg.timestamp)
+                }));
+                setMessages(messagesWithDates);
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+        }
     }, []);
+
+    // Save chat history to sessionStorage whenever messages change
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('ai_chat_history', JSON.stringify(messages));
+        } catch (error) {
+            console.error('Error saving chat history:', error);
+        }
+    }, [messages]);
+
+    // Auto-scroll to bottom (only if user hasn't scrolled up)
+    const scrollToBottom = useCallback(() => {
+        if (!userScrolledUp) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [userScrolledUp]);
 
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
+
+    // Detect when user scrolls up
+    const handleScroll = useCallback(() => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+        
+        setUserScrolledUp(!isAtBottom);
+    }, []);
+
+    // Scroll to bottom helper
+    const handleScrollToBottom = useCallback(() => {
+        setUserScrolledUp(false);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
 
     // Cleanup on unmount (session end)
     useEffect(() => {
@@ -75,6 +123,16 @@ export default function AIAssistantPage() {
     // HANDLERS
     // ========================================================================
 
+    const handleStopStreaming = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+        setIsStreaming(false);
+        showToast('info', 'Response stopped');
+    }, [showToast]);
+
     const handleClearChat = useCallback(() => {
         // Abort any ongoing request
         if (abortControllerRef.current) {
@@ -86,6 +144,14 @@ export default function AIAssistantPage() {
         setInput('');
         setIsLoading(false);
         setIsStreaming(false);
+        setUserScrolledUp(false);
+        
+        // Clear sessionStorage
+        try {
+            sessionStorage.removeItem('ai_chat_history');
+        } catch (error) {
+            console.error('Error clearing chat history:', error);
+        }
         
         showToast('success', 'Chat cleared');
     }, [showToast]);
@@ -147,14 +213,7 @@ export default function AIAssistantPage() {
             setIsStreaming(true);
 
             if (reader) {
-                // Create assistant message placeholder
-                assistantId = (Date.now() + 1).toString();
-                setMessages(prev => [...prev, {
-                    id: assistantId,
-                    role: 'assistant',
-                    content: '',
-                    timestamp: new Date(),
-                }]);
+                let firstChunk = true;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -169,12 +228,25 @@ export default function AIAssistantPage() {
                                 const data = JSON.parse(line.slice(6));
                                 
                                 if (data.chunk) {
-                                    fullAnswer += data.chunk;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantId
-                                            ? { ...msg, content: fullAnswer }
-                                            : msg
-                                    ));
+                                    // Create assistant message only on first chunk
+                                    if (firstChunk) {
+                                        firstChunk = false;
+                                        assistantId = (Date.now() + 1).toString();
+                                        fullAnswer = data.chunk;
+                                        setMessages(prev => [...prev, {
+                                            id: assistantId,
+                                            role: 'assistant',
+                                            content: fullAnswer,
+                                            timestamp: new Date(),
+                                        }]);
+                                    } else {
+                                        fullAnswer += data.chunk;
+                                        setMessages(prev => prev.map(msg =>
+                                            msg.id === assistantId
+                                                ? { ...msg, content: fullAnswer }
+                                                : msg
+                                        ));
+                                    }
                                 }
                                 
                                 if (data.done) {
@@ -336,7 +408,11 @@ export default function AIAssistantPage() {
             </header>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto">
+            <div 
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto"
+            >
                 <div className="max-w-3xl mx-auto py-6 px-4 space-y-4">
                     {messages.map((message) => (
                         <div
@@ -356,8 +432,9 @@ export default function AIAssistantPage() {
                                         : 'bg-white border shadow-sm text-gray-800'
                                 }`}
                             >
-                                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                                <p className={`text-xs mt-2 ${
+                                <MessageContent content={message.content} role={message.role} isInitial={message.id === '1'} />
+                                
+                                <p className={`text-xs mt-3 ${
                                     message.role === 'user' ? 'text-blue-200' : 'text-gray-400'
                                 }`}>
                                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -372,17 +449,22 @@ export default function AIAssistantPage() {
                         </div>
                     ))}
 
-                    {/* Loading indicator */}
-                    {isLoading && (
-                        <div className="flex gap-3">
+                    {/* Loading indicator - Show only one */}
+                    {(isLoading || isStreaming) && (
+                        <div className="flex gap-3 animate-slideIn">
                             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                                 <Bot size={16} className="text-blue-600" />
                             </div>
-                            <div className="bg-white border shadow-sm rounded-2xl px-4 py-3">
-                                <div className="flex gap-1">
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <div className="bg-white border shadow-sm rounded-2xl px-4 py-3 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex gap-1">
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium">
+                                        {isLoading && !isStreaming ? 'Searching documents...' : 'Generating response...'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -391,6 +473,17 @@ export default function AIAssistantPage() {
                     <div ref={messagesEndRef} />
                 </div>
             </div>
+
+            {/* Floating scroll to bottom button - shows when user scrolled up */}
+            {userScrolledUp && (
+                <button
+                    onClick={handleScrollToBottom}
+                    className="fixed bottom-32 right-8 w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50"
+                    title="Scroll to bottom"
+                >
+                    <ArrowDown size={20} />
+                </button>
+            )}
 
             {/* Input */}
             <div className="border-t bg-white px-4 py-4">
@@ -405,13 +498,23 @@ export default function AIAssistantPage() {
                             className="flex-1 px-4 py-3 rounded-xl border bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                             disabled={isLoading || isStreaming}
                         />
-                        <Button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isLoading || isStreaming}
-                            className="px-4"
-                        >
-                            <Send size={20} />
-                        </Button>
+                        {(isLoading || isStreaming) ? (
+                            <button
+                                onClick={handleStopStreaming}
+                                className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
+                            >
+                                <StopCircle size={20} />
+                                <span>Stop</span>
+                            </button>
+                        ) : (
+                            <Button
+                                onClick={handleSend}
+                                disabled={!input.trim()}
+                                className="px-4"
+                            >
+                                <Send size={20} />
+                            </Button>
+                        )}
                     </div>
                     <p className="text-xs text-gray-400 mt-2 text-center">
                         Session-based chat • Context cleared on page close or Clear Chat
