@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Query
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Query, Request
 import bcrypt
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -14,7 +14,8 @@ from bson import ObjectId
 from models import (
     UserInDB, TaskInDB, DocumentInDB,
     UserCreate, OrganizationSignup, UserLogin, Token, TaskCreate, TaskResponse,
-    DocumentResponse, TaskCategory, generate_slug
+    DocumentResponse, TaskCategory, generate_slug,
+    OrganizationResponse, OrganizationUpdate, OrganizationStats
 )
 from database import (
     users_collection, tasks_collection, documents_collection, 
@@ -22,6 +23,7 @@ from database import (
 )
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
+from organization_service import OrganizationService
 
 load_dotenv()
 
@@ -311,6 +313,88 @@ async def login(user: UserLogin):
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Organization endpoints
+@app.get("/organizations/me", response_model=OrganizationResponse)
+async def get_current_organization(request: Request):
+    """
+    Get current user's organization.
+    Requires authentication via JWT token.
+    """
+    organization_id = request.state.organization_id
+    
+    if not organization_id:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    
+    organization = await OrganizationService.get_organization(organization_id)
+    
+    if not organization:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    
+    return OrganizationResponse(
+        id=str(organization.id),
+        name=organization.name,
+        slug=organization.slug,
+        logo_url=organization.logo_url,
+        settings=organization.settings,
+        created_at=organization.created_at,
+        is_active=organization.is_active
+    )
+
+@app.put("/organizations/me", response_model=OrganizationResponse)
+async def update_current_organization(request: Request, update_data: OrganizationUpdate):
+    """
+    Update current user's organization.
+    Only organization admins can update organization settings.
+    """
+    organization_id = request.state.organization_id
+    role = request.state.role
+    
+    # Check if user is admin
+    if role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can update organization settings"
+        )
+    
+    if not organization_id:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    
+    # Convert to dict and remove None values
+    update_dict = update_data.model_dump(exclude_none=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    organization = await OrganizationService.update_organization(organization_id, update_dict)
+    
+    if not organization:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    
+    return OrganizationResponse(
+        id=str(organization.id),
+        name=organization.name,
+        slug=organization.slug,
+        logo_url=organization.logo_url,
+        settings=organization.settings,
+        created_at=organization.created_at,
+        is_active=organization.is_active
+    )
+
+@app.get("/organizations/me/stats", response_model=OrganizationStats)
+async def get_organization_statistics(request: Request):
+    """
+    Get statistics for current user's organization.
+    Returns counts of users, documents, tasks, etc.
+    """
+    organization_id = request.state.organization_id
+    
+    if not organization_id:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    
+    stats = await OrganizationService.get_organization_stats(organization_id)
+    
+    return OrganizationStats(**stats)
 
 # Task endpoints
 @app.get("/tasks", response_model=List[TaskResponse])
