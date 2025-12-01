@@ -16,7 +16,8 @@ from models import (
     UserCreate, OrganizationSignup, UserLogin, Token, TaskCreate, TaskResponse,
     DocumentResponse, TaskCategory, generate_slug,
     OrganizationResponse, OrganizationUpdate, OrganizationStats,
-    InvitationCreate, InvitationResponse, InvitationAccept
+    InvitationCreate, InvitationResponse, InvitationAccept,
+    UserResponse, UserRoleUpdate
 )
 from database import (
     users_collection, tasks_collection, documents_collection, 
@@ -523,6 +524,191 @@ async def revoke_invitation(request: Request, invitation_id: str):
     await InvitationService.revoke_invitation(invitation_id, organization_id)
     
     return {"message": "Invitation revoked successfully", "invitation_id": invitation_id}
+
+# User Management endpoints
+@app.get("/users", response_model=List[UserResponse])
+async def list_organization_users(request: Request):
+    """
+    List all users in the current organization.
+    Returns user details including role and status.
+    
+    Requirements: 2.4, 2.5, 3.5
+    """
+    organization_id = request.state.organization_id
+    
+    # Find all users in the organization
+    users = await users_collection.find({
+        "organization_id": organization_id
+    }).sort("created_at", -1).to_list(length=None)
+    
+    return [
+        UserResponse(
+            id=str(user["_id"]),
+            email=user["email"],
+            role=user.get("role", "employee"),
+            is_active=user.get("is_active", True),
+            is_verified=user.get("is_verified", False),
+            created_at=user["created_at"]
+        )
+        for user in users
+    ]
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+async def get_user_details(request: Request, user_id: str):
+    """
+    Get details of a specific user in the organization.
+    
+    Requirements: 2.4, 2.5, 3.5
+    """
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Find user and verify they belong to the same organization
+    user = await users_collection.find_one({
+        "_id": ObjectId(user_id),
+        "organization_id": organization_id
+    })
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserResponse(
+        id=str(user["_id"]),
+        email=user["email"],
+        role=user.get("role", "employee"),
+        is_active=user.get("is_active", True),
+        is_verified=user.get("is_verified", False),
+        created_at=user["created_at"]
+    )
+
+@app.put("/users/{user_id}/role", response_model=UserResponse)
+async def update_user_role(request: Request, user_id: str, role_update: UserRoleUpdate):
+    """
+    Update a user's role within the organization.
+    Only organization admins can update user roles.
+    
+    Requirements: 2.4, 2.5, 3.5
+    """
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    organization_id = request.state.organization_id
+    current_user_role = request.state.role
+    current_user_id = request.state.user_id
+    
+    # Check if current user is admin
+    if current_user_role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can update user roles"
+        )
+    
+    # Validate role value
+    if role_update.role not in ["admin", "employee"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Role must be either 'admin' or 'employee'"
+        )
+    
+    # Find user and verify they belong to the same organization
+    user = await users_collection.find_one({
+        "_id": ObjectId(user_id),
+        "organization_id": organization_id
+    })
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent user from changing their own role
+    if str(user["_id"]) == current_user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot change your own role"
+        )
+    
+    # Update user role
+    await users_collection.update_one(
+        {"_id": ObjectId(user_id), "organization_id": organization_id},
+        {"$set": {"role": role_update.role}}
+    )
+    
+    # Fetch updated user
+    updated_user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    
+    return UserResponse(
+        id=str(updated_user["_id"]),
+        email=updated_user["email"],
+        role=updated_user["role"],
+        is_active=updated_user.get("is_active", True),
+        is_verified=updated_user.get("is_verified", False),
+        created_at=updated_user["created_at"]
+    )
+
+@app.delete("/users/{user_id}")
+async def remove_user_from_organization(request: Request, user_id: str):
+    """
+    Remove a user from the organization.
+    Only organization admins can remove users.
+    Users cannot remove themselves.
+    
+    Requirements: 2.4, 2.5, 3.5
+    """
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    organization_id = request.state.organization_id
+    current_user_role = request.state.role
+    current_user_id = request.state.user_id
+    
+    # Check if current user is admin
+    if current_user_role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can remove users"
+        )
+    
+    # Find user and verify they belong to the same organization
+    user = await users_collection.find_one({
+        "_id": ObjectId(user_id),
+        "organization_id": organization_id
+    })
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent user from removing themselves
+    if str(user["_id"]) == current_user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot remove yourself from the organization"
+        )
+    
+    # Check if this is the last admin
+    admin_count = await users_collection.count_documents({
+        "organization_id": organization_id,
+        "role": "admin",
+        "is_active": True
+    })
+    
+    if user.get("role") == "admin" and admin_count <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot remove the last admin from the organization"
+        )
+    
+    # Soft delete: deactivate the user instead of hard delete
+    await users_collection.update_one(
+        {"_id": ObjectId(user_id), "organization_id": organization_id},
+        {"$set": {"is_active": False}}
+    )
+    
+    return {
+        "message": "User removed from organization successfully",
+        "user_id": user_id,
+        "email": user["email"]
+    }
 
 # Task endpoints
 @app.get("/tasks", response_model=List[TaskResponse])
