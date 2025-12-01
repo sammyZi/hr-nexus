@@ -134,7 +134,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, role, i
                                     <div className="flex items-center justify-between mb-1">
                                         <span className="font-semibold text-gray-800">[{source.num}] {source.filename}</span>
                                         <button
-                                            onClick={() => window.open(`http://localhost:8000/documents/${source.num}/view`, '_blank')}
+                                            onClick={() => window.open(`http://localhost:8000/documents/view-by-name/${encodeURIComponent(source.filename)}`, '_blank')}
                                             className="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium"
                                         >
                                             View

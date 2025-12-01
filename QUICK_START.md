@@ -2,17 +2,40 @@
 
 ## Prerequisites
 - Python 3.8+
+- MongoDB installed and running
 - Ollama installed and running
 - Node.js 16+ (for frontend)
 
 ## Setup
 
-### 1. Backend Setup
+### 1. Start MongoDB
+
+Make sure MongoDB is installed and running:
+
+```bash
+# Windows
+net start MongoDB
+
+# Mac/Linux
+sudo systemctl start mongod
+# or
+brew services start mongodb-community
+```
+
+### 2. Backend Setup
 
 ```bash
 # Navigate to backend
 cd backend
 
+# Run automated setup (Windows)
+setup.bat
+
+# OR run automated setup (Mac/Linux)
+chmod +x setup.sh
+./setup.sh
+
+# OR manual setup:
 # Create virtual environment
 python -m venv venv
 
@@ -24,20 +47,23 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Seed database with sample data
+python seed_data.py
 ```
 
-### 2. Start Ollama Service
+### 3. Start Ollama Service
 
 In a new terminal:
 ```bash
 ollama serve
 ```
 
-### 3. Start Backend Server
+### 4. Start Backend Server
 
 ```bash
 # In backend directory with venv activated
-uvicorn main:app --reload
+uvicorn main:app --reload --port 8000
 ```
 
 You should see:
@@ -45,7 +71,7 @@ You should see:
 INFO:     Uvicorn running on http://127.0.0.1:8000
 ```
 
-### 4. Frontend Setup
+### 5. Frontend Setup
 
 In a new terminal:
 ```bash
@@ -66,7 +92,7 @@ You should see:
   - Local:        http://localhost:3000
 ```
 
-### 5. Access the Application
+### 6. Access the Application
 
 Open your browser and go to:
 ```
@@ -117,10 +143,22 @@ http://localhost:3000
 
 ## Troubleshooting
 
+### MongoDB connection error
+```
+Error: Connection refused to MongoDB
+Solution: Start MongoDB service (see step 1)
+```
+
 ### Backend won't start
 ```
 Error: ModuleNotFoundError
 Solution: pip install -r requirements.txt
+```
+
+### Database not seeded
+```
+Error: No users found
+Solution: Run python seed_data.py
 ```
 
 ### Ollama connection error
@@ -184,14 +222,24 @@ hr_new/
 - `PUT /tasks/{id}` - Update task
 - `DELETE /tasks/{id}` - Delete task
 
+## Sample Users
+
+After running the seed script, you can login with:
+
+- **Admin**: admin@hrnexus.com / admin123
+- **HR Manager**: hr.manager@hrnexus.com / manager123
+- **Recruiter**: recruiter@hrnexus.com / recruiter123
+
 ## Environment Variables
 
-Create `.env` file in backend:
+The `.env` file in backend contains:
 
 ```
+MONGODB_URL=mongodb://localhost:27017
+DATABASE_NAME=hrnexus
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
-DATABASE_URL=sqlite:///./test.db
+OLLAMA_MODEL=llama3.2:latest
+SECRET_KEY=your-secret-key
 ```
 
 ## Performance Tips
