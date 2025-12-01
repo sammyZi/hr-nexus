@@ -397,7 +397,7 @@ Your response (indices only, comma-separated):"""
             print(f"⚠️  Re-ranking failed: {e}, using vector similarity", flush=True)
             return results[:Config.SEARCH_K_RERANK]  # Fallback to vector similarity on error
     
-    def search(self, query: str, k: int = None) -> List[SearchResult]:
+    def search(self, query: str, k: int = None, organization_id: str = None) -> List[SearchResult]:
         """Multi-level search with query expansion, re-ranking, and relevance filtering"""
         if not self.vectordb:
             print("❌ Vector database not found", flush=True)
@@ -411,14 +411,25 @@ Your response (indices only, comma-separated):"""
         print(f"   Original: {query}", flush=True)
         print(f"   Expanded: {expanded_queries[1:]}", flush=True)
         
-        # Step 2: Multi-query search
+        # Step 2: Multi-query search with organization filter
         all_results = {}
         for q in expanded_queries:
             try:
-                results_with_scores = self.vectordb.similarity_search_with_score(
-                    q, 
-                    k=Config.SEARCH_K_INITIAL
-                )
+                # Build filter for organization isolation
+                search_filter = {"organization_id": organization_id} if organization_id else None
+                
+                if search_filter:
+                    print(f"🏢 Filtering by organization: {organization_id}", flush=True)
+                    results_with_scores = self.vectordb.similarity_search_with_score(
+                        q, 
+                        k=Config.SEARCH_K_INITIAL,
+                        filter=search_filter
+                    )
+                else:
+                    results_with_scores = self.vectordb.similarity_search_with_score(
+                        q, 
+                        k=Config.SEARCH_K_INITIAL
+                    )
                 
                 for doc, score in results_with_scores:
                     doc_id = doc.metadata.get('doc_id', 'unknown')
@@ -643,13 +654,14 @@ def get_generator() -> ResponseGenerator:
 # PUBLIC API FUNCTIONS
 # ============================================================================
 
-def process_document(file_path: str, file_type: str = None) -> dict:
+def process_document(file_path: str, file_type: str = None, organization_id: str = None) -> dict:
     """
     Process a document and add it to the vector database.
     
     Args:
         file_path: Path to the document file
         file_type: File extension (pdf, docx, txt). Auto-detected if None.
+        organization_id: Organization ID for multi-tenant isolation. Required for proper data isolation.
     
     Returns:
         dict: {
@@ -658,6 +670,8 @@ def process_document(file_path: str, file_type: str = None) -> dict:
             "num_chunks": int,
             "processing_time": float
         }
+    
+    Requirements: 5.2, 5.5
     """
     start_time = time.time()
     
@@ -688,7 +702,13 @@ def process_document(file_path: str, file_type: str = None) -> dict:
         chunks = processor.chunk_documents(documents, file_path, file_type)
         print(f"✓ Created {len(chunks)} chunks", flush=True)
         
-        # Step 3: Index chunks
+        # Step 3: Add organization_id to metadata for multi-tenant isolation
+        if organization_id:
+            print(f"🏢 Adding organization context: {organization_id}", flush=True)
+            for chunk in chunks:
+                chunk.metadata["organization_id"] = organization_id
+        
+        # Step 4: Index chunks
         print(f"🔍 Indexing chunks...", flush=True)
         num_indexed = processor.index_chunks(chunks)
         
@@ -759,7 +779,7 @@ def is_greeting_or_smalltalk(query: str) -> tuple:
     return (False, None)
 
 
-def get_answer_with_fallback(query: str, conversation_history: list = None, stream: bool = False):
+def get_answer_with_fallback(query: str, conversation_history: list = None, stream: bool = False, organization_id: str = None):
     """
     Answer questions using uploaded documents.
     
@@ -767,40 +787,44 @@ def get_answer_with_fallback(query: str, conversation_history: list = None, stre
         query: The user's question
         conversation_history: List of previous messages [{"role": "user/assistant", "content": "..."}]
         stream: If True, returns a generator for streaming responses
+        organization_id: Organization ID for multi-tenant isolation. Filters search to organization's documents only.
     
     Returns:
         If stream=False: tuple (answer: str, source: str)
         If stream=True: generator yielding (chunk: str, source: str, done: bool)
+    
+    Requirements: 5.1, 5.3, 5.6
     """
+    if stream:
+        return _get_answer_streaming(query, conversation_history, organization_id)
+    else:
+        return _get_answer_non_streaming(query, conversation_history, organization_id)
+
+
+def _get_answer_non_streaming(query: str, conversation_history: list = None, organization_id: str = None):
+    """Non-streaming version of get_answer_with_fallback"""
     try:
         # Check for greetings and small talk first
         is_smalltalk, smalltalk_response = is_greeting_or_smalltalk(query)
         if is_smalltalk:
-            if stream:
-                yield (smalltalk_response, "greeting", True)
-                return
             return (smalltalk_response, "greeting")
         
         # Check if documents exist
         if not os.path.exists(Config.PERSIST_DIRECTORY):
             no_docs_msg = "❌ No documents uploaded yet. Please upload documents first."
-            if stream:
-                yield (no_docs_msg, "no_documents", True)
-                return
             return (no_docs_msg, "no_documents")
         
         search_engine = get_search_engine()
         generator = get_generator()
         
-        # Search for relevant documents
+        # Search for relevant documents with organization filter
         print(f"🔍 Searching for: '{query}'", flush=True)
-        results = search_engine.search(query)
+        if organization_id:
+            print(f"🏢 Organization context: {organization_id}", flush=True)
+        results = search_engine.search(query, organization_id=organization_id)
         
         if not results:
             no_results_msg = "❌ I couldn't find relevant information in the uploaded documents. Try rephrasing your question or upload more documents."
-            if stream:
-                yield (no_results_msg, "no_documents", True)
-                return
             return (no_results_msg, "no_documents")
         
         print(f"✓ Found {len(results)} relevant chunks", flush=True)
@@ -808,17 +832,52 @@ def get_answer_with_fallback(query: str, conversation_history: list = None, stre
             print(f"  [{i+1}] {r.citation.document_name} (score: {r.citation.relevance_score})", flush=True)
         
         # Generate response
-        if stream:
-            yield from generator.generate(query, results, conversation_history, stream=True)
-        else:
-            return generator.generate(query, results, conversation_history, stream=False)
+        return generator.generate(query, results, conversation_history, stream=False)
     
     except Exception as e:
         error_msg = f"❌ Error: {str(e)}"
-        if stream:
-            yield (error_msg, "error", True)
-        else:
-            return (error_msg, "error")
+        return (error_msg, "error")
+
+
+def _get_answer_streaming(query: str, conversation_history: list = None, organization_id: str = None):
+    """Streaming version of get_answer_with_fallback"""
+    try:
+        # Check for greetings and small talk first
+        is_smalltalk, smalltalk_response = is_greeting_or_smalltalk(query)
+        if is_smalltalk:
+            yield (smalltalk_response, "greeting", True)
+            return
+        
+        # Check if documents exist
+        if not os.path.exists(Config.PERSIST_DIRECTORY):
+            no_docs_msg = "❌ No documents uploaded yet. Please upload documents first."
+            yield (no_docs_msg, "no_documents", True)
+            return
+        
+        search_engine = get_search_engine()
+        generator = get_generator()
+        
+        # Search for relevant documents with organization filter
+        print(f"🔍 Searching for: '{query}'", flush=True)
+        if organization_id:
+            print(f"🏢 Organization context: {organization_id}", flush=True)
+        results = search_engine.search(query, organization_id=organization_id)
+        
+        if not results:
+            no_results_msg = "❌ I couldn't find relevant information in the uploaded documents. Try rephrasing your question or upload more documents."
+            yield (no_results_msg, "no_documents", True)
+            return
+        
+        print(f"✓ Found {len(results)} relevant chunks", flush=True)
+        for i, r in enumerate(results):
+            print(f"  [{i+1}] {r.citation.document_name} (score: {r.citation.relevance_score})", flush=True)
+        
+        # Generate response
+        yield from generator.generate(query, results, conversation_history, stream=True)
+    
+    except Exception as e:
+        error_msg = f"❌ Error: {str(e)}"
+        yield (error_msg, "error", True)
 
 
 # ============================================================================
@@ -846,12 +905,29 @@ def get_document_count() -> int:
     return 0
 
 
-def delete_document(file_path: str) -> bool:
-    """Delete a specific document from the database"""
+def delete_document(file_path: str, organization_id: str = None) -> bool:
+    """
+    Delete a specific document from the database.
+    
+    Args:
+        file_path: Path to the document file
+        organization_id: Organization ID for multi-tenant isolation. Ensures only organization's documents are deleted.
+    
+    Returns:
+        bool: True if deletion was successful, False otherwise
+    
+    Requirements: 5.5
+    """
     search_engine = get_search_engine()
     if search_engine.vectordb:
         try:
-            search_engine.vectordb.delete(where={"source_file": file_path})
+            # Build filter with organization_id for multi-tenant isolation
+            delete_filter = {"source_file": file_path}
+            if organization_id:
+                delete_filter["organization_id"] = organization_id
+                print(f"🏢 Deleting document with organization filter: {organization_id}", flush=True)
+            
+            search_engine.vectordb.delete(where=delete_filter)
             return True
         except Exception as e:
             print(f"Error deleting document: {e}")

@@ -167,95 +167,143 @@
   - _Requirements: 8.2_
 
 - [ ] 6. Update Existing Endpoints - Tasks
+
+
+
+
+
+
+
   - Add organization filtering to all task endpoints
   - Preserve all existing functionality
   - _Requirements: 4.1, 4.2, 10.1, 10.2_
 
-- [ ] 6.1 Update GET /tasks endpoint
+- [x] 6.1 Update GET /tasks endpoint
+
+
   - Add automatic organization_id filter from request.state
   - Maintain existing category and status filters
   - _Requirements: 4.1, 10.2_
 
-- [ ] 6.2 Update POST /tasks endpoint
+- [x] 6.2 Update POST /tasks endpoint
+
+
   - Add organization_id from request.state
   - Maintain existing task creation logic
   - _Requirements: 4.1, 10.2_
 
-- [ ] 6.3 Update PUT /tasks/{task_id} endpoint
+- [x] 6.3 Update PUT /tasks/{task_id} endpoint
+
+
   - Verify task belongs to user's organization
   - Maintain existing update logic
   - _Requirements: 4.3, 10.2_
 
-- [ ] 6.4 Update PATCH /tasks/{task_id}/status endpoint
+- [x] 6.4 Update PATCH /tasks/{task_id}/status endpoint
+
+
   - Verify task belongs to user's organization
   - Maintain existing status update logic
   - _Requirements: 4.3, 10.2_
 
-- [ ] 6.5 Update DELETE /tasks/{task_id} endpoint
+- [x] 6.5 Update DELETE /tasks/{task_id} endpoint
+
+
   - Verify task belongs to user's organization
   - Maintain existing delete logic
   - _Requirements: 4.3, 10.2_
 
-- [ ] 7. Update Existing Endpoints - Documents
+- [x] 7. Update Existing Endpoints - Documents
+
+
+
+
+
   - Add organization filtering to all document endpoints
   - Organize file storage by organization
   - _Requirements: 4.1, 4.4, 10.3, 10.4_
 
-- [ ] 7.1 Update POST /documents/upload endpoint
+- [x] 7.1 Update POST /documents/upload endpoint
+
+
   - Add organization_id from request.state
   - Organize uploads by organization (./uploads/{org_id}/)
   - Maintain existing upload logic
   - _Requirements: 4.4, 10.3_
 
-- [ ] 7.2 Update GET /documents endpoint
+- [x] 7.2 Update GET /documents endpoint
+
+
   - Add automatic organization_id filter
   - Maintain existing category filter
   - _Requirements: 4.1, 10.3_
 
-- [ ] 7.3 Update GET /documents/{doc_id}/view endpoint
+- [x] 7.3 Update GET /documents/{doc_id}/view endpoint
+
+
   - Verify document belongs to user's organization
   - Maintain existing view logic
   - _Requirements: 4.3, 10.3_
 
-- [ ] 7.4 Update GET /documents/{doc_id}/download endpoint
+- [x] 7.4 Update GET /documents/{doc_id}/download endpoint
+
+
   - Verify document belongs to user's organization
   - Maintain existing download logic
   - _Requirements: 4.3, 10.3_
 
-- [ ] 7.5 Update DELETE /documents/{doc_id} endpoint
+- [x] 7.5 Update DELETE /documents/{doc_id} endpoint
+
+
   - Verify document belongs to user's organization
   - Maintain existing delete logic (including vector DB cleanup)
   - _Requirements: 4.3, 10.3_
 
-- [ ] 8. Update RAG System for Multi-Tenancy
+- [x] 8. Update RAG System for Multi-Tenancy
+
+
+
+
+
   - Add organization filtering to vector database
   - Update document processing
   - _Requirements: 5.1, 5.2, 5.3, 5.5, 10.4_
 
-- [ ] 8.1 Update process_document function
+- [x] 8.1 Update process_document function
+
+
   - Add organization_id parameter
   - Include organization_id in ChromaDB metadata
   - Maintain existing chunking and embedding logic
   - _Requirements: 5.2, 5.5_
 
-- [ ] 8.2 Update get_answer_with_fallback function
+- [x] 8.2 Update get_answer_with_fallback function
+
+
   - Add organization_id parameter
   - Filter vector search by organization_id metadata
   - Maintain existing RAG logic and streaming
   - _Requirements: 5.1, 5.3, 5.6_
 
-- [ ] 8.3 Update POST /chat endpoint
+- [x] 8.3 Update POST /chat endpoint
+
+
   - Extract organization_id from request.state
   - Pass organization_id to RAG functions
   - Maintain existing chat functionality
   - _Requirements: 5.1, 5.4, 10.4_
 
-- [ ] 8.4 Update document deletion in vector DB
+- [x] 8.4 Update document deletion in vector DB
+
+
   - Filter by both file_path and organization_id
   - Ensure only organization's documents are deleted
   - _Requirements: 5.5_
 
 - [ ] 9. User Management
+
+
+
   - Add endpoints to manage organization users
   - Implement role updates
   - _Requirements: 2.4, 2.5, 3.5_

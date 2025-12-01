@@ -526,8 +526,20 @@ async def revoke_invitation(request: Request, invitation_id: str):
 
 # Task endpoints
 @app.get("/tasks", response_model=List[TaskResponse])
-async def get_tasks(category: str = None):
-    query = {}
+async def get_tasks(request: Request, category: str = None):
+    """
+    Get all tasks for the current organization.
+    Automatically filters by organization_id from JWT token.
+    
+    Requirements: 4.1, 10.2
+    """
+    # Get organization_id from request state (injected by middleware)
+    organization_id = request.state.organization_id
+    
+    # Build query with organization filter
+    query = {"organization_id": organization_id}
+    
+    # Maintain existing category filter
     if category and category != "All":
         query["category"] = category
     
@@ -550,18 +562,26 @@ async def get_tasks(category: str = None):
     ]
 
 @app.post("/tasks", response_model=TaskResponse)
-async def create_task(task: TaskCreate):
-    # Get first user as default owner
-    first_user = await users_collection.find_one({})
-    owner_id = str(first_user["_id"]) if first_user else None
+async def create_task(request: Request, task: TaskCreate):
+    """
+    Create a new task for the current organization.
+    Automatically adds organization_id from JWT token.
     
+    Requirements: 4.1, 10.2
+    """
+    # Get organization_id and user_id from request state (injected by middleware)
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Create new task with organization_id
     new_task = {
+        "organization_id": organization_id,
         "title": task.title,
         "description": task.description,
         "category": task.category,
         "priority": task.priority,
         "status": "Pending",
-        "owner_id": owner_id,
+        "owner_id": user_id,  # Use current user as owner
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
@@ -582,14 +602,29 @@ async def create_task(task: TaskCreate):
     )
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
-async def update_task(task_id: str, task: TaskCreate):
+async def update_task(request: Request, task_id: str, task: TaskCreate):
+    """
+    Update a task.
+    Verifies task belongs to user's organization before updating.
+    
+    Requirements: 4.3, 10.2
+    """
     if not ObjectId.is_valid(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
     
-    db_task = await tasks_collection.find_one({"_id": ObjectId(task_id)})
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Find task and verify it belongs to user's organization
+    db_task = await tasks_collection.find_one({
+        "_id": ObjectId(task_id),
+        "organization_id": organization_id
+    })
+    
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     
+    # Maintain existing update logic
     update_data = {
         "title": task.title,
         "description": task.description,
@@ -599,7 +634,7 @@ async def update_task(task_id: str, task: TaskCreate):
     }
     
     await tasks_collection.update_one(
-        {"_id": ObjectId(task_id)},
+        {"_id": ObjectId(task_id), "organization_id": organization_id},
         {"$set": update_data}
     )
     
@@ -618,20 +653,35 @@ async def update_task(task_id: str, task: TaskCreate):
     )
 
 @app.patch("/tasks/{task_id}/status")
-async def update_task_status(task_id: str, status: str = Query(...)):
+async def update_task_status(request: Request, task_id: str, status: str = Query(...)):
+    """
+    Update task status.
+    Verifies task belongs to user's organization before updating.
+    
+    Requirements: 4.3, 10.2
+    """
     print(f"[TASK] Updating task {task_id} status to: {status}", flush=True)
     
     if not ObjectId.is_valid(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
     
-    db_task = await tasks_collection.find_one({"_id": ObjectId(task_id)})
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Find task and verify it belongs to user's organization
+    db_task = await tasks_collection.find_one({
+        "_id": ObjectId(task_id),
+        "organization_id": organization_id
+    })
+    
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     
     old_status = db_task["status"]
     
+    # Maintain existing status update logic
     await tasks_collection.update_one(
-        {"_id": ObjectId(task_id)},
+        {"_id": ObjectId(task_id), "organization_id": organization_id},
         {"$set": {"status": status, "updated_at": datetime.utcnow()}}
     )
     
@@ -639,11 +689,24 @@ async def update_task_status(task_id: str, status: str = Query(...)):
     return {"message": "Task status updated", "task_id": task_id, "status": status}
 
 @app.delete("/tasks/{task_id}")
-async def delete_task(task_id: str):
+async def delete_task(request: Request, task_id: str):
+    """
+    Delete a task.
+    Verifies task belongs to user's organization before deleting.
+    
+    Requirements: 4.3, 10.2
+    """
     if not ObjectId.is_valid(task_id):
         raise HTTPException(status_code=400, detail="Invalid task ID")
     
-    result = await tasks_collection.delete_one({"_id": ObjectId(task_id)})
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Delete task only if it belongs to user's organization
+    result = await tasks_collection.delete_one({
+        "_id": ObjectId(task_id),
+        "organization_id": organization_id
+    })
     
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -656,13 +719,14 @@ from fastapi import BackgroundTasks
 # Store processing status
 processing_status = {}
 
-def process_document_background(doc_id: str, file_path: str, file_ext: str):
-    """Background task to process document"""
+def process_document_background(doc_id: str, file_path: str, file_ext: str, organization_id: str):
+    """Background task to process document with organization context"""
     try:
         processing_status[doc_id] = {"status": "processing", "progress": 0}
-        print(f"[DOC {doc_id}] Starting processing...")
+        print(f"[DOC {doc_id}] Starting processing for org {organization_id}...")
         
-        result = process_document(file_path, file_ext)
+        # Process document with organization_id for vector DB isolation
+        result = process_document(file_path, file_ext, organization_id)
         
         if result.get("success"):
             processing_status[doc_id] = {
@@ -695,10 +759,20 @@ def get_document_status(doc_id: str):
 
 @app.post("/documents/upload", response_model=DocumentResponse)
 async def upload_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     category: Optional[str] = Form(None)
 ):
+    """
+    Upload a document for the current organization.
+    Automatically adds organization_id and organizes files by organization.
+    
+    Requirements: 4.4, 10.3
+    """
+    # Get organization_id from request state (injected by middleware)
+    organization_id = request.state.organization_id
+    
     # Validate file type
     allowed_extensions = ['pdf', 'docx', 'doc', 'txt']
     file_ext = file.filename.split('.')[-1].lower()
@@ -706,9 +780,13 @@ async def upload_document(
     if file_ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail=f"File type not supported. Allowed: {', '.join(allowed_extensions)}")
     
+    # Organize uploads by organization (./uploads/{org_id}/)
+    org_upload_dir = os.path.join(UPLOAD_DIR, organization_id)
+    os.makedirs(org_upload_dir, exist_ok=True)
+    
     # Generate unique filename
     unique_filename = f"{uuid.uuid4()}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    file_path = os.path.join(org_upload_dir, unique_filename)
     
     # Save file
     try:
@@ -717,8 +795,9 @@ async def upload_document(
         
         file_size = os.path.getsize(file_path)
         
-        # Save to database
+        # Save to database with organization_id
         new_doc = {
+            "organization_id": organization_id,  # NEW: Add organization_id
             "filename": unique_filename,
             "original_filename": file.filename,
             "file_path": file_path,
@@ -731,9 +810,9 @@ async def upload_document(
         result = await documents_collection.insert_one(new_doc)
         doc_id = str(result.inserted_id)
         
-        # Process document in background
+        # Process document in background with organization_id
         processing_status[doc_id] = {"status": "queued", "progress": 0}
-        background_tasks.add_task(process_document_background, doc_id, file_path, file_ext)
+        background_tasks.add_task(process_document_background, doc_id, file_path, file_ext, organization_id)
         
         return DocumentResponse(
             id=doc_id,
@@ -751,8 +830,20 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
 
 @app.get("/documents", response_model=List[DocumentResponse])
-async def get_documents(category: Optional[str] = None):
-    query = {}
+async def get_documents(request: Request, category: Optional[str] = None):
+    """
+    Get all documents for the current organization.
+    Automatically filters by organization_id from JWT token.
+    
+    Requirements: 4.1, 10.3
+    """
+    # Get organization_id from request state (injected by middleware)
+    organization_id = request.state.organization_id
+    
+    # Build query with organization filter
+    query = {"organization_id": organization_id}
+    
+    # Maintain existing category filter
     if category:
         query["category"] = category
     
@@ -772,12 +863,25 @@ async def get_documents(category: Optional[str] = None):
     ]
 
 @app.get("/documents/{doc_id}/view")
-async def view_document(doc_id: str):
-    """View a document inline in browser"""
+async def view_document(request: Request, doc_id: str):
+    """
+    View a document inline in browser.
+    Verifies document belongs to user's organization before serving.
+    
+    Requirements: 4.3, 10.3
+    """
     if not ObjectId.is_valid(doc_id):
         raise HTTPException(status_code=400, detail="Invalid document ID")
     
-    doc = await documents_collection.find_one({"_id": ObjectId(doc_id)})
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Find document and verify it belongs to user's organization
+    doc = await documents_collection.find_one({
+        "_id": ObjectId(doc_id),
+        "organization_id": organization_id
+    })
+    
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
@@ -805,19 +909,33 @@ async def view_document(doc_id: str):
     )
 
 @app.get("/documents/view-by-name/{filename:path}")
-async def view_document_by_name(filename: str):
-    """View a document by its original filename (used by AI citations)"""
+async def view_document_by_name(request: Request, filename: str):
+    """
+    View a document by its original filename (used by AI citations).
+    Verifies document belongs to user's organization before serving.
+    
+    Requirements: 4.3, 10.3
+    """
     from urllib.parse import unquote
     
-    decoded_filename = unquote(filename)
-    print(f"[DOC] Looking for document: {decoded_filename}", flush=True)
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
     
-    doc = await documents_collection.find_one({"original_filename": decoded_filename})
+    decoded_filename = unquote(filename)
+    print(f"[DOC] Looking for document: {decoded_filename} in org: {organization_id}", flush=True)
+    
+    # Find document with organization filter
+    doc = await documents_collection.find_one({
+        "original_filename": decoded_filename,
+        "organization_id": organization_id
+    })
     
     if not doc:
-        doc = await documents_collection.find_one(
-            {"original_filename": {"$regex": decoded_filename, "$options": "i"}}
-        )
+        # Try case-insensitive search with organization filter
+        doc = await documents_collection.find_one({
+            "original_filename": {"$regex": decoded_filename, "$options": "i"},
+            "organization_id": organization_id
+        })
     
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document '{decoded_filename}' not found")
@@ -848,12 +966,25 @@ async def view_document_by_name(filename: str):
     )
 
 @app.get("/documents/{doc_id}/download")
-async def download_document(doc_id: str):
-    """Download a document"""
+async def download_document(request: Request, doc_id: str):
+    """
+    Download a document.
+    Verifies document belongs to user's organization before serving.
+    
+    Requirements: 4.3, 10.3
+    """
     if not ObjectId.is_valid(doc_id):
         raise HTTPException(status_code=400, detail="Invalid document ID")
     
-    doc = await documents_collection.find_one({"_id": ObjectId(doc_id)})
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Find document and verify it belongs to user's organization
+    doc = await documents_collection.find_one({
+        "_id": ObjectId(doc_id),
+        "organization_id": organization_id
+    })
+    
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
@@ -871,15 +1002,30 @@ async def download_document(doc_id: str):
     )
 
 @app.delete("/documents/{doc_id}")
-async def delete_document(doc_id: str):
+async def delete_document(request: Request, doc_id: str):
+    """
+    Delete a document.
+    Verifies document belongs to user's organization before deleting.
+    Maintains existing delete logic including vector DB cleanup.
+    
+    Requirements: 4.3, 10.3
+    """
     if not ObjectId.is_valid(doc_id):
         raise HTTPException(status_code=400, detail="Invalid document ID")
     
-    doc = await documents_collection.find_one({"_id": ObjectId(doc_id)})
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Find document and verify it belongs to user's organization
+    doc = await documents_collection.find_one({
+        "_id": ObjectId(doc_id),
+        "organization_id": organization_id
+    })
+    
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Delete from vector database
+    # Delete from vector database with organization filter
     try:
         from langchain_community.embeddings import OllamaEmbeddings
         from langchain_chroma import Chroma
@@ -893,8 +1039,13 @@ async def delete_document(doc_id: str):
                 model="nomic-embed-text"
             )
             vectordb = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embeddings)
-            vectordb.delete(where={"source_file": doc["file_path"]})
-            print(f"Deleted document chunks from vector DB: {doc['file_path']}")
+            
+            # Filter by both file_path and organization_id to ensure only organization's documents are deleted
+            vectordb.delete(where={
+                "source_file": doc["file_path"],
+                "organization_id": organization_id
+            })
+            print(f"Deleted document chunks from vector DB: {doc['file_path']} (org: {organization_id})")
     except Exception as e:
         print(f"Error deleting from vector DB: {e}")
     
@@ -903,7 +1054,10 @@ async def delete_document(doc_id: str):
         os.remove(doc["file_path"])
     
     # Delete from database
-    await documents_collection.delete_one({"_id": ObjectId(doc_id)})
+    await documents_collection.delete_one({
+        "_id": ObjectId(doc_id),
+        "organization_id": organization_id
+    })
     
     return {"message": "Document deleted successfully from all locations", "doc_id": doc_id}
 
@@ -917,12 +1071,22 @@ import json as json_lib
 
 @app.post("/chat")
 async def chat(
+    request: Request,
     query: str = Form(...), 
     file: Optional[UploadFile] = File(None),
     history: Optional[str] = Form(None),
     stream: Optional[str] = Form("false")
 ):
+    """
+    Chat endpoint with AI assistant using RAG.
+    Automatically filters by organization context for multi-tenant isolation.
+    
+    Requirements: 5.1, 5.4, 10.4
+    """
     try:
+        # Extract organization_id from request.state (injected by middleware)
+        organization_id = getattr(request.state, "organization_id", None)
+        
         if file:
             file_ext = file.filename.split('.')[-1].lower()
             temp_path = f"temp_{uuid.uuid4()}_{file.filename}"
@@ -930,7 +1094,8 @@ async def chat(
             with open(temp_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             
-            result = process_document(temp_path, file_ext)
+            # Pass organization_id to process_document for multi-tenant isolation
+            result = process_document(temp_path, file_ext, organization_id)
             os.remove(temp_path)
             
             if not result.get("success"):
@@ -947,7 +1112,8 @@ async def chat(
             if stream == "true":
                 async def generate():
                     try:
-                        for chunk, source, done in get_answer_with_fallback(query, conversation_history, stream=True):
+                        # Pass organization_id to RAG function for filtering
+                        for chunk, source, done in get_answer_with_fallback(query, conversation_history, stream=True, organization_id=organization_id):
                             yield f"data: {json_lib.dumps({'chunk': chunk, 'done': done, 'source': source})}\n\n"
                             await asyncio.sleep(0)
                     except Exception as e:
@@ -955,7 +1121,8 @@ async def chat(
                 
                 return StreamingResponse(generate(), media_type="text/event-stream")
             else:
-                answer, source = get_answer_with_fallback(query, conversation_history)
+                # Pass organization_id to RAG function for filtering
+                answer, source = get_answer_with_fallback(query, conversation_history, organization_id=organization_id)
                 return {"answer": answer, "query": query, "source": source}
         else:
             return {"message": "Document processed successfully", "query": ""}
