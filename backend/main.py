@@ -13,10 +13,13 @@ from bson import ObjectId
 
 from models import (
     UserInDB, TaskInDB, DocumentInDB,
-    UserCreate, UserLogin, Token, TaskCreate, TaskResponse,
-    DocumentResponse, TaskCategory
+    UserCreate, OrganizationSignup, UserLogin, Token, TaskCreate, TaskResponse,
+    DocumentResponse, TaskCategory, generate_slug
 )
-from database import users_collection, tasks_collection, documents_collection, close_database
+from database import (
+    users_collection, tasks_collection, documents_collection, 
+    organizations_collection, close_database
+)
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
 
@@ -40,8 +43,90 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 app = FastAPI(title="HR Nexus API")
+
+# Tenant Context Middleware
+class TenantContextMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to extract organization context from JWT and inject into request state.
+    Automatically filters all queries by organization_id for data isolation.
+    """
+    
+    # Public endpoints that don't require authentication
+    PUBLIC_PATHS = [
+        "/health",
+        "/auth/signup",
+        "/auth/login",
+        "/auth/verify",
+        "/organizations/signup",
+        "/invitations/accept",
+        "/docs",
+        "/openapi.json",
+        "/redoc"
+    ]
+    
+    async def dispatch(self, request: Request, call_next):
+        # Skip authentication for public endpoints
+        path = request.url.path
+        
+        # Check if path starts with any public path
+        is_public = any(path.startswith(public_path) for public_path in self.PUBLIC_PATHS)
+        
+        # Also skip OPTIONS requests (CORS preflight)
+        if is_public or request.method == "OPTIONS":
+            return await call_next(request)
+        
+        # Extract JWT token from Authorization header
+        auth_header = request.headers.get("Authorization", "")
+        
+        if not auth_header.startswith("Bearer "):
+            return Response(
+                content='{"detail":"Not authenticated"}',
+                status_code=401,
+                media_type="application/json"
+            )
+        
+        token = auth_header.replace("Bearer ", "")
+        
+        try:
+            # Decode JWT token
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            
+            # Extract organization context from token
+            organization_id = payload.get("organization_id")
+            user_id = payload.get("user_id")
+            role = payload.get("role")
+            email = payload.get("sub")
+            
+            # Inject into request state for use in endpoints
+            request.state.organization_id = organization_id
+            request.state.user_id = user_id
+            request.state.role = role
+            request.state.email = email
+            
+            # Log for debugging (optional)
+            print(f"[TENANT] Request from org={organization_id}, user={user_id}, role={role}", flush=True)
+            
+        except JWTError as e:
+            return Response(
+                content=f'{{"detail":"Invalid authentication token: {str(e)}"}}',
+                status_code=401,
+                media_type="application/json"
+            )
+        except Exception as e:
+            return Response(
+                content=f'{{"detail":"Authentication error: {str(e)}"}}',
+                status_code=401,
+                media_type="application/json"
+            )
+        
+        # Continue processing the request
+        response = await call_next(request)
+        return response
 
 # CORS configuration
 app.add_middleware(
@@ -52,7 +137,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Apply Tenant Context Middleware
+app.add_middleware(TenantContextMiddleware)
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    """
+    Create JWT access token with organization context.
+    
+    Expected data keys:
+    - sub: user email
+    - user_id: user ID
+    - organization_id: organization ID
+    - role: user role ("admin" or "employee")
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -100,6 +197,79 @@ async def signup(user: UserCreate):
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.options("/organizations/signup")
+async def organization_signup_options():
+    return {}
+
+@app.post("/organizations/signup", response_model=Token)
+async def organization_signup(signup_data: OrganizationSignup):
+    """
+    Create a new organization and first admin user.
+    Returns JWT with organization context.
+    """
+    # Check if user email already exists
+    existing_user = await users_collection.find_one({"email": signup_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Generate organization slug
+    base_slug = generate_slug(signup_data.organization_name)
+    slug = base_slug
+    counter = 1
+    
+    # Ensure slug is unique
+    while await organizations_collection.find_one({"slug": slug}):
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+    
+    # Create organization
+    new_organization = {
+        "name": signup_data.organization_name,
+        "slug": slug,
+        "logo_url": None,
+        "settings": {},
+        "created_at": datetime.utcnow(),
+        "is_active": True
+    }
+    
+    org_result = await organizations_collection.insert_one(new_organization)
+    organization_id = str(org_result.inserted_id)
+    
+    # Create first admin user
+    hashed_password = hash_password(signup_data.password)
+    verification_token = secrets.token_urlsafe(32)
+    
+    new_user = {
+        "organization_id": organization_id,
+        "email": signup_data.email,
+        "hashed_password": hashed_password,
+        "role": "admin",
+        "is_active": True,
+        "is_verified": False,
+        "verification_token": verification_token,
+        "created_at": datetime.utcnow()
+    }
+    
+    user_result = await users_collection.insert_one(new_user)
+    user_id = str(user_result.inserted_id)
+    
+    # Send verification email
+    await send_verification_email(signup_data.email, verification_token)
+    
+    # Create JWT with organization context
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={
+            "sub": signup_data.email,
+            "user_id": user_id,
+            "organization_id": organization_id,
+            "role": "admin"
+        },
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.get("/auth/verify/{token}")
 async def verify_email(token: str):
     user = await users_collection.find_one({"verification_token": token})
@@ -118,6 +288,9 @@ async def login_options():
 
 @app.post("/auth/login", response_model=Token)
 async def login(user: UserLogin):
+    """
+    Login user and return JWT with organization context.
+    """
     db_user = await users_collection.find_one({"email": user.email})
     if not db_user or not verify_password(user.password, db_user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Invalid credentials")
@@ -125,7 +298,18 @@ async def login(user: UserLogin):
     if not db_user["is_verified"]:
         raise HTTPException(status_code=400, detail="Email not verified")
     
-    access_token = create_access_token(data={"sub": db_user["email"]})
+    # Create JWT with organization context
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={
+            "sub": db_user["email"],
+            "user_id": str(db_user["_id"]),
+            "organization_id": db_user.get("organization_id"),
+            "role": db_user.get("role", "employee")
+        },
+        expires_delta=access_token_expires
+    )
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 # Task endpoints
