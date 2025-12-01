@@ -238,3 +238,18 @@ class InvitationResponse(BaseModel):
 
 class InvitationAccept(BaseModel):
     password: str
+
+# User Management Models
+class UserResponse(BaseModel):
+    id: str
+    email: EmailStr
+    role: str
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class UserRoleUpdate(BaseModel):
+    role: str  # "admin" or "employee"
