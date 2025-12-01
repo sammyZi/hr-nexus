@@ -1,10 +1,24 @@
-from sqlalchemy import Column, Integer, String, Boolean, Enum as SQLEnum, ForeignKey
-from sqlalchemy.orm import relationship, declarative_base
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
+from datetime import datetime
+from bson import ObjectId
 import enum
 
-Base = declarative_base()
+# Custom ObjectId type for Pydantic
+class PyObjectId(ObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, field_schema):
+        field_schema.update(type="string")
 
 class TaskCategory(str, enum.Enum):
     Recruiting = "Recruiting"
@@ -16,30 +30,53 @@ class TaskCategory(str, enum.Enum):
     Performance = "Performance"
     Offboarding = "Offboarding"
 
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
-    verification_token = Column(String, nullable=True)
-    
-    tasks = relationship("Task", back_populates="owner")
+# MongoDB Models (Pydantic)
+class UserInDB(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    email: EmailStr
+    hashed_password: str
+    is_active: bool = True
+    is_verified: bool = False
+    verification_token: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class Task(Base):
-    __tablename__ = "tasks"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String)
-    status = Column(String, default="Pending")
-    category = Column(SQLEnum(TaskCategory))
-    priority = Column(String, default="Medium")
-    owner_id = Column(Integer, ForeignKey("users.id"))
-    
-    owner = relationship("User", back_populates="tasks")
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
-# Pydantic Models
+class TaskInDB(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    title: str
+    description: Optional[str] = None
+    status: str = "Pending"
+    category: TaskCategory
+    priority: str = "Medium"
+    owner_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class DocumentInDB(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    filename: str
+    original_filename: str
+    file_path: str
+    file_type: str
+    file_size: int
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    category: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+# API Request/Response Models
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -62,9 +99,28 @@ class TaskCreate(TaskBase):
     pass
 
 class TaskResponse(TaskBase):
-    id: int
+    id: str
     status: str
-    owner_id: Optional[int] = None
+    owner_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
+    class Config:
+        from_attributes = True
+
+class DocumentCreate(BaseModel):
+    filename: str
+    file_type: str
+    category: Optional[str] = None
+
+class DocumentResponse(BaseModel):
+    id: str
+    filename: str
+    original_filename: str
+    file_type: str
+    file_size: int
+    uploaded_at: datetime
+    category: Optional[str] = None
+    
     class Config:
         from_attributes = True
