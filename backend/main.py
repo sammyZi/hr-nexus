@@ -15,7 +15,8 @@ from models import (
     UserInDB, TaskInDB, DocumentInDB,
     UserCreate, OrganizationSignup, UserLogin, Token, TaskCreate, TaskResponse,
     DocumentResponse, TaskCategory, generate_slug,
-    OrganizationResponse, OrganizationUpdate, OrganizationStats
+    OrganizationResponse, OrganizationUpdate, OrganizationStats,
+    InvitationCreate, InvitationResponse, InvitationAccept
 )
 from database import (
     users_collection, tasks_collection, documents_collection, 
@@ -24,6 +25,7 @@ from database import (
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
 from organization_service import OrganizationService
+from invitation_service import InvitationService
 
 load_dotenv()
 
@@ -65,7 +67,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
         "/auth/login",
         "/auth/verify",
         "/organizations/signup",
-        "/invitations/accept",
+        "/invitations/accept/",  # Allow invitation acceptance without auth
         "/docs",
         "/openapi.json",
         "/redoc"
@@ -395,6 +397,132 @@ async def get_organization_statistics(request: Request):
     stats = await OrganizationService.get_organization_stats(organization_id)
     
     return OrganizationStats(**stats)
+
+# Invitation endpoints
+@app.post("/invitations", response_model=InvitationResponse)
+async def create_invitation(request: Request, invitation_data: InvitationCreate):
+    """
+    Create and send an invitation to join the organization.
+    Only organization admins can send invitations.
+    
+    Requirements: 2.2, 8.1
+    """
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    role = request.state.role
+    
+    # Check if user is admin
+    if role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can send invitations"
+        )
+    
+    # Create invitation
+    invitation = await InvitationService.create_invitation(
+        organization_id=organization_id,
+        email=invitation_data.email,
+        role=invitation_data.role,
+        invited_by=user_id
+    )
+    
+    # Send invitation email
+    await InvitationService.send_invitation_email(invitation)
+    
+    return InvitationResponse(
+        id=str(invitation.id),
+        organization_id=invitation.organization_id,
+        email=invitation.email,
+        role=invitation.role,
+        status=invitation.status,
+        invited_by=invitation.invited_by,
+        expires_at=invitation.expires_at,
+        created_at=invitation.created_at
+    )
+
+@app.get("/invitations", response_model=List[InvitationResponse])
+async def list_pending_invitations(request: Request):
+    """
+    List all pending invitations for the organization.
+    Only organization admins can view invitations.
+    
+    Requirements: 8.1
+    """
+    organization_id = request.state.organization_id
+    role = request.state.role
+    
+    # Check if user is admin
+    if role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can view invitations"
+        )
+    
+    invitations = await InvitationService.get_pending_invitations(organization_id)
+    
+    return [
+        InvitationResponse(
+            id=inv["id"],
+            organization_id=inv["organization_id"],
+            email=inv["email"],
+            role=inv["role"],
+            status=inv["status"],
+            invited_by=inv["invited_by"],
+            expires_at=inv["expires_at"],
+            created_at=inv["created_at"]
+        )
+        for inv in invitations
+    ]
+
+@app.post("/invitations/accept/{token}", response_model=Token)
+async def accept_invitation(token: str, accept_data: InvitationAccept):
+    """
+    Accept an invitation and create a new user account.
+    Returns JWT with organization context for auto-login.
+    
+    Requirements: 8.3, 8.5
+    """
+    # Accept invitation and create user
+    user_data = await InvitationService.accept_invitation(
+        token=token,
+        password=accept_data.password
+    )
+    
+    # Create JWT with organization context for auto-login
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={
+            "sub": user_data["email"],
+            "user_id": user_data["user_id"],
+            "organization_id": user_data["organization_id"],
+            "role": user_data["role"]
+        },
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.delete("/invitations/{invitation_id}")
+async def revoke_invitation(request: Request, invitation_id: str):
+    """
+    Revoke a pending invitation.
+    Only organization admins can revoke invitations.
+    
+    Requirements: 8.5
+    """
+    organization_id = request.state.organization_id
+    role = request.state.role
+    
+    # Check if user is admin
+    if role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can revoke invitations"
+        )
+    
+    await InvitationService.revoke_invitation(invitation_id, organization_id)
+    
+    return {"message": "Invitation revoked successfully", "invitation_id": invitation_id}
 
 # Task endpoints
 @app.get("/tasks", response_model=List[TaskResponse])

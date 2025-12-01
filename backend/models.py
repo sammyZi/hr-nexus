@@ -218,3 +218,23 @@ class OrganizationStats(BaseModel):
     total_tasks: int
     completed_tasks: int
     pending_tasks: int
+
+class InvitationCreate(BaseModel):
+    email: EmailStr
+    role: str  # "admin" or "employee"
+
+class InvitationResponse(BaseModel):
+    id: str
+    organization_id: str
+    email: EmailStr
+    role: str
+    status: str
+    invited_by: str
+    expires_at: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class InvitationAccept(BaseModel):
+    password: str
