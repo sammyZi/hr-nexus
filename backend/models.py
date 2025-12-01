@@ -13,7 +13,7 @@ class PyObjectId(ObjectId):
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v, validation_info=None):
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
@@ -194,3 +194,27 @@ class DocumentResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class OrganizationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    logo_url: Optional[str] = None
+    settings: Dict = Field(default_factory=dict)
+    created_at: datetime
+    is_active: bool
+    
+    class Config:
+        from_attributes = True
+
+class OrganizationUpdate(BaseModel):
+    name: Optional[str] = None
+    logo_url: Optional[str] = None
+    settings: Optional[Dict] = None
+
+class OrganizationStats(BaseModel):
+    active_users: int
+    total_documents: int
+    total_tasks: int
+    completed_tasks: int
+    pending_tasks: int
