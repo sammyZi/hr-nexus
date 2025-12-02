@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 // CONSTANTS
 // ============================================================================
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // ============================================================================
 // MAIN COMPONENT
@@ -39,7 +39,12 @@ export default function DocumentsPage() {
             // Check processing status for recent uploads
             for (const doc of data) {
                 try {
-                    const response = await fetch(`${API_BASE}/documents/${doc.id}/status`);
+                    const token = localStorage.getItem('access_token');
+                    const response = await fetch(`${API_BASE}/documents/${doc.id}/status`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
                     const status = await response.json();
                     if (status.status === 'processing' || status.status === 'queued') {
                         setProcessingDocs(prev => new Set(prev).add(doc.id));
@@ -66,10 +71,15 @@ export default function DocumentsPage() {
 
         const checkStatus = async () => {
             const stillProcessing = new Set<number>();
+            const token = localStorage.getItem('access_token');
             
             for (const docId of processingDocs) {
                 try {
-                    const response = await fetch(`${API_BASE}/documents/${docId}/status`);
+                    const response = await fetch(`${API_BASE}/documents/${docId}/status`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
                     const status = await response.json();
                     
                     if (status.status === 'processing' || status.status === 'queued') {
@@ -112,13 +122,65 @@ export default function DocumentsPage() {
         }
     }, [showToast, fetchDocuments]);
 
-    const handleView = useCallback((id: number) => {
-        window.open(`${API_BASE}/documents/${id}/view`, '_blank');
-    }, []);
+    const handleView = useCallback(async (id: number) => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${API_BASE}/documents/${id}/view`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch document');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            
+            // Clean up the URL after a delay
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        } catch (error) {
+            console.error('Failed to view document', error);
+            showToast('error', 'Failed to view document');
+        }
+    }, [showToast]);
 
-    const handleDownload = useCallback((id: number) => {
-        window.open(`${API_BASE}/documents/${id}/download`, '_blank');
-    }, []);
+    const handleDownload = useCallback(async (id: number) => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${API_BASE}/documents/${id}/download`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to download document');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('content-disposition');
+            const filename = contentDisposition
+                ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+                : 'document';
+            
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to download document', error);
+            showToast('error', 'Failed to download document');
+        }
+    }, [showToast]);
 
     const handleDelete = useCallback(async (id: number, filename: string) => {
         if (!confirm(`Delete "${filename}"?`)) return;

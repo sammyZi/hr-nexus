@@ -46,6 +46,9 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 load_dotenv()
 
+# Disable ChromaDB telemetry to suppress telemetry warnings
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -425,6 +428,24 @@ Your response (indices only, comma-separated):"""
                         k=Config.SEARCH_K_INITIAL,
                         filter=search_filter
                     )
+                    
+                    # Fallback: if no results with filter, try without filter (for backward compatibility)
+                    if not results_with_scores:
+                        print(f"⚠️  No results with organization filter, trying without filter...", flush=True)
+                        results_with_scores = self.vectordb.similarity_search_with_score(
+                            q, 
+                            k=Config.SEARCH_K_INITIAL
+                        )
+                        # Post-filter results to only include docs from this org or docs without org_id
+                        filtered_results = []
+                        for doc, score in results_with_scores:
+                            doc_org_id = doc.metadata.get('organization_id')
+                            # Include if: no org_id (legacy), or matches current org
+                            if not doc_org_id or doc_org_id == organization_id:
+                                filtered_results.append((doc, score))
+                        results_with_scores = filtered_results
+                        if filtered_results:
+                            print(f"   Found {len(filtered_results)} results after post-filtering", flush=True)
                 else:
                     results_with_scores = self.vectordb.similarity_search_with_score(
                         q, 

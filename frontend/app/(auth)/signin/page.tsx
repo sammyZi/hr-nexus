@@ -21,18 +21,28 @@ export default function SignInPage() {
 
         try {
             const response = await authApi.login({ email, password });
+            console.log('[SignIn] Login response:', { hasToken: !!response.access_token });
+            
             if (response.access_token) {
                 localStorage.setItem("access_token", response.access_token);
+                console.log('[SignIn] Token saved to localStorage');
+                console.log('[SignIn] Token preview:', response.access_token.substring(0, 30) + '...');
                 
                 // Decode JWT to extract organization_id
                 try {
                     const payload = JSON.parse(atob(response.access_token.split('.')[1]));
+                    console.log('[SignIn] Token payload:', payload);
                     if (payload.organization_id) {
                         localStorage.setItem('organization_id', payload.organization_id);
+                        console.log('[SignIn] Organization ID saved:', payload.organization_id);
                     }
                 } catch (error) {
-                    console.error('Failed to decode token:', error);
+                    console.error('[SignIn] Failed to decode token:', error);
                 }
+                
+                // Verify token was saved
+                const savedToken = localStorage.getItem('access_token');
+                console.log('[SignIn] Verification - Token in localStorage:', !!savedToken);
                 
                 showToast("success", "Welcome back!");
                 router.push("/dashboard");

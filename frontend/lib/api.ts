@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+console.log('[API] Initializing API client with base URL:', API_BASE_URL);
+
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -12,9 +14,17 @@ const api = axios.create({
 // Add request interceptor to include auth token
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        // Only access localStorage on client side
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('access_token');
+            console.log('[API Interceptor] Token exists:', !!token);
+            console.log('[API Interceptor] Request URL:', config.url);
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+                console.log('[API Interceptor] Added Authorization header');
+            } else {
+                console.warn('[API Interceptor] No token found in localStorage');
+            }
         }
         return config;
     },
@@ -40,13 +50,13 @@ api.interceptors.response.use(
 
 // Types
 export interface Task {
-    id: number;
+    id: string;
     title: string;
     description?: string;
     status: string;
     category: string;
     priority: string;
-    owner_id: number;
+    owner_id?: string;
 }
 
 export interface TaskCreate {
@@ -81,18 +91,18 @@ export const taskApi = {
         return response.data;
     },
 
-    update: async (id: number, task: TaskCreate): Promise<Task> => {
+    update: async (id: string, task: TaskCreate): Promise<Task> => {
         const response = await api.put(`/tasks/${id}`, task);
         return response.data;
     },
 
-    updateStatus: async (id: number, status: string): Promise<void> => {
+    updateStatus: async (id: string, status: string): Promise<void> => {
         await api.patch(`/tasks/${id}/status`, null, {
             params: { status }
         });
     },
 
-    delete: async (id: number): Promise<void> => {
+    delete: async (id: string): Promise<void> => {
         await api.delete(`/tasks/${id}`);
     },
 };
