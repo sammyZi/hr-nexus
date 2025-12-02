@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar, SidebarToggle } from "@/components/Sidebar";
+import { OrganizationProvider } from "@/contexts/OrganizationContext";
 
 export default function DashboardLayout({
     children,
@@ -43,14 +44,16 @@ export default function DashboardLayout({
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-            <SidebarToggle onClick={() => setSidebarOpen(true)} />
-            
-            {/* Main content */}
-            <main className="lg:pl-64 min-h-screen">
-                {children}
-            </main>
-        </div>
+        <OrganizationProvider>
+            <div className="min-h-screen bg-gray-50">
+                <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+                <SidebarToggle onClick={() => setSidebarOpen(true)} />
+                
+                {/* Main content */}
+                <main className="lg:pl-64 min-h-screen">
+                    {children}
+                </main>
+            </div>
+        </OrganizationProvider>
     );
 }

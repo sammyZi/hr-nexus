@@ -239,6 +239,20 @@ class InvitationService:
         return invitations
     
     @staticmethod
+    async def get_invitation_by_token(token: str) -> Optional[dict]:
+        """
+        Get invitation details by token (for invitation acceptance page).
+        
+        Args:
+            token: Invitation token
+            
+        Returns:
+            Invitation dictionary or None if not found
+        """
+        invitation = await invitations_collection.find_one({"token": token})
+        return invitation
+    
+    @staticmethod
     async def revoke_invitation(invitation_id: str, organization_id: str) -> bool:
         """
         Revoke a pending invitation.

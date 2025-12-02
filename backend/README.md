@@ -44,28 +44,34 @@ Backend API for HR Nexus application using FastAPI and MongoDB.
      DATABASE_NAME=hrnexus
      ```
 
-5. **Seed Database with Sample Data**
+5. **Initialize Database**
    ```bash
-   python seed_data.py
+   python init_db.py
    ```
    
-   This will create:
-   - 3 sample users (admin, hr manager, recruiter)
-   - 12 sample tasks across all HR categories
-   - Database indexes for performance
+   This will create database indexes for performance.
 
 6. **Run the Application**
    ```bash
    uvicorn main:app --reload --port 8000
    ```
 
-## Sample Users
+## Getting Started
 
-After seeding, you can login with:
+1. Navigate to the frontend application
+2. Sign up with your organization name and email
+3. Verify your email
+4. Start uploading documents and creating tasks
 
-- **Admin**: admin@hrnexus.com / admin123
-- **HR Manager**: hr.manager@hrnexus.com / manager123
-- **Recruiter**: recruiter@hrnexus.com / recruiter123
+## Clear Database (Optional)
+
+If you need to clear all data and start fresh:
+
+```bash
+python clear_sample_data.py
+```
+
+This will remove all users, tasks, documents, and organizations from the database.
 
 ## API Endpoints
 

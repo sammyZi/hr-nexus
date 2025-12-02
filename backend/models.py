@@ -155,6 +155,13 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class VerifyEmail(BaseModel):
+    email: EmailStr
+    code: str
+
+class ResendVerification(BaseModel):
+    email: EmailStr
+
 class Token(BaseModel):
     access_token: str
     token_type: str
