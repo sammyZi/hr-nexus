@@ -17,6 +17,7 @@ import {
     BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { documentApi, taskApi } from "@/lib/api";
 
 // ============================================================================
 // TYPES
@@ -39,44 +40,17 @@ interface QuickAction {
     color: string;
 }
 
+interface DashboardStats {
+    totalDocuments: number;
+    totalTasks: number;
+    activeTasks: number;
+    completedTasks: number;
+    completionRate: number;
+}
+
 // ============================================================================
 // DATA
 // ============================================================================
-
-const stats: StatCard[] = [
-    {
-        title: "Total Documents",
-        value: "24",
-        change: "+3 this week",
-        changeType: "positive",
-        icon: FileText,
-        color: "blue",
-    },
-    {
-        title: "AI Queries",
-        value: "156",
-        change: "+28 today",
-        changeType: "positive",
-        icon: MessageSquare,
-        color: "purple",
-    },
-    {
-        title: "Active Tasks",
-        value: "12",
-        change: "4 due today",
-        changeType: "neutral",
-        icon: Clock,
-        color: "orange",
-    },
-    {
-        title: "Completed",
-        value: "89%",
-        change: "+5% vs last month",
-        changeType: "positive",
-        icon: CheckCircle2,
-        color: "green",
-    },
-];
 
 const quickActions: QuickAction[] = [
     {
@@ -172,12 +146,67 @@ const QuickActionCard = ({ action }: { action: QuickAction }) => {
 
 export default function DashboardPage() {
     const [greeting, setGreeting] = useState("Good morning");
+    const [stats, setStats] = useState<StatCard[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const hour = new Date().getHours();
         if (hour >= 12 && hour < 17) setGreeting("Good afternoon");
         else if (hour >= 17) setGreeting("Good evening");
+        
+        fetchDashboardStats();
     }, []);
+
+    const fetchDashboardStats = async () => {
+        setLoading(true);
+        try {
+            const [documents, tasks] = await Promise.all([
+                documentApi.getAll(),
+                taskApi.getAll()
+            ]);
+
+            const activeTasks = tasks.filter(t => t.status !== 'Completed').length;
+            const completedTasks = tasks.filter(t => t.status === 'Completed').length;
+            const completionRate = tasks.length > 0 
+                ? Math.round((completedTasks / tasks.length) * 100) 
+                : 0;
+
+            const dashboardStats: StatCard[] = [
+                {
+                    title: "Total Documents",
+                    value: documents.length,
+                    icon: FileText,
+                    color: "blue",
+                },
+                {
+                    title: "Total Tasks",
+                    value: tasks.length,
+                    icon: MessageSquare,
+                    color: "purple",
+                },
+                {
+                    title: "Active Tasks",
+                    value: activeTasks,
+                    icon: Clock,
+                    color: "orange",
+                },
+                {
+                    title: "Completed",
+                    value: `${completionRate}%`,
+                    change: `${completedTasks} of ${tasks.length} tasks`,
+                    changeType: "neutral",
+                    icon: CheckCircle2,
+                    color: "green",
+                },
+            ];
+
+            setStats(dashboardStats);
+        } catch (error) {
+            console.error("Failed to fetch dashboard stats", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -204,11 +233,17 @@ export default function DashboardPage() {
                 {/* Stats Grid */}
                 <section>
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Overview</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {stats.map((stat, index) => (
-                            <StatCardComponent key={index} stat={stat} />
-                        ))}
-                    </div>
+                    {loading ? (
+                        <div className="flex justify-center py-12">
+                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {stats.map((stat, index) => (
+                                <StatCardComponent key={index} stat={stat} />
+                            ))}
+                        </div>
+                    )}
                 </section>
 
                 {/* Quick Actions */}
@@ -256,28 +291,29 @@ export default function DashboardPage() {
                     </div>
                 </section>
 
-                {/* Recent Activity */}
-                <section>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-                    <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
-                        {[
-                            { action: "Document uploaded", item: "Employee Handbook 2024.pdf", time: "2 hours ago", icon: FileText },
-                            { action: "AI query answered", item: "What is the vacation policy?", time: "3 hours ago", icon: MessageSquare },
-                            { action: "Task completed", item: "Q4 Performance Reviews", time: "5 hours ago", icon: CheckCircle2 },
-                        ].map((activity, index) => (
-                            <div key={index} className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
-                                <div className="p-2 rounded-lg bg-gray-100">
-                                    <activity.icon size={18} className="text-gray-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                                    <p className="text-sm text-gray-500">{activity.item}</p>
-                                </div>
-                                <span className="text-xs text-gray-400">{activity.time}</span>
+                {/* Getting Started */}
+                {!loading && stats.length > 0 && stats[0].value === 0 && (
+                    <section>
+                        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to HR Nexus!</h2>
+                            <p className="text-gray-500 mb-6">Get started by uploading your first document or creating a task</p>
+                            <div className="flex justify-center gap-4">
+                                <Link href="/documents">
+                                    <Button className="gap-2">
+                                        <Upload size={18} />
+                                        Upload Document
+                                    </Button>
+                                </Link>
+                                <Link href="/pillars/recruiting">
+                                    <Button variant="secondary" className="gap-2">
+                                        <FileText size={18} />
+                                        Create Task
+                                    </Button>
+                                </Link>
                             </div>
-                        ))}
-                    </div>
-                </section>
+                        </div>
+                    </section>
+                )}
             </main>
         </div>
     );

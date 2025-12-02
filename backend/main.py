@@ -17,11 +17,12 @@ from models import (
     DocumentResponse, TaskCategory, generate_slug,
     OrganizationResponse, OrganizationUpdate, OrganizationStats,
     InvitationCreate, InvitationResponse, InvitationAccept,
-    UserResponse, UserRoleUpdate
+    UserResponse, UserRoleUpdate, VerifyEmail, ResendVerification
 )
+import models
 from database import (
     users_collection, tasks_collection, documents_collection, 
-    organizations_collection, close_database
+    organizations_collection, close_database, pending_signups_collection
 )
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
@@ -51,8 +52,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 app = FastAPI(title="HR Nexus API")
+
+# Global exception handler to log validation errors
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"[VALIDATION ERROR] Path: {request.url.path}", flush=True)
+    print(f"[VALIDATION ERROR] Details: {exc.errors()}", flush=True)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"[GLOBAL ERROR] Path: {request.url.path}", flush=True)
+    print(f"[GLOBAL ERROR] Type: {type(exc).__name__}", flush=True)
+    print(f"[GLOBAL ERROR] Message: {str(exc)}", flush=True)
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"}
+    )
 
 # Tenant Context Middleware
 class TenantContextMiddleware(BaseHTTPMiddleware):
@@ -69,6 +94,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
         "/auth/verify",
         "/organizations/signup",
         "/invitations/accept/",  # Allow invitation acceptance without auth
+        "/invitations/token/",  # Allow getting invitation details without auth
         "/docs",
         "/openapi.json",
         "/redoc"
@@ -197,7 +223,12 @@ async def signup(user: UserCreate):
     
     result = await users_collection.insert_one(new_user)
     
-    await send_verification_email(user.email, verification_token)
+    # Send verification email (optional - skip if email service not configured)
+    try:
+        await send_verification_email(user.email, verification_token)
+    except Exception as e:
+        print(f"Warning: Could not send verification email: {e}")
+        # Continue anyway - user can verify later or skip verification in dev
     
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -206,86 +237,211 @@ async def signup(user: UserCreate):
 async def organization_signup_options():
     return {}
 
-@app.post("/organizations/signup", response_model=Token)
+@app.post("/organizations/signup")
 async def organization_signup(signup_data: OrganizationSignup):
     """
-    Create a new organization and first admin user.
-    Returns JWT with organization context.
+    Store signup data temporarily and send verification code.
+    User and organization will be created only after email verification.
     """
-    # Check if user email already exists
-    existing_user = await users_collection.find_one({"email": signup_data.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    try:
+        print(f"[SIGNUP] Attempting signup for email: {signup_data.email}, org: {signup_data.organization_name}", flush=True)
+        
+        # Check if email already exists in users or pending signups
+        existing_user = await users_collection.find_one({"email": signup_data.email})
+        if existing_user:
+            print(f"[SIGNUP] Email already registered: {signup_data.email}", flush=True)
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        existing_pending = await pending_signups_collection.find_one({"email": signup_data.email})
+        if existing_pending:
+            # Delete old pending signup
+            await pending_signups_collection.delete_one({"email": signup_data.email})
+        
+        # Generate organization slug
+        base_slug = generate_slug(signup_data.organization_name)
+        slug = base_slug
+        counter = 1
+        
+        # Ensure slug is unique
+        while await organizations_collection.find_one({"slug": slug}):
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        
+        # Hash password
+        hashed_password = hash_password(signup_data.password)
+        
+        # Generate 6-digit verification code
+        import random
+        verification_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        
+        # Set expiry time (10 minutes from now)
+        verification_expiry = datetime.utcnow() + timedelta(minutes=10)
+        
+        # Store in pending_signups collection (temporary storage)
+        pending_signup = {
+            "email": signup_data.email,
+            "hashed_password": hashed_password,
+            "organization_name": signup_data.organization_name,
+            "organization_slug": slug,
+            "verification_code": verification_code,
+            "verification_code_expiry": verification_expiry,
+            "created_at": datetime.utcnow()
+        }
+        
+        await pending_signups_collection.insert_one(pending_signup)
+        print(f"[SIGNUP] Pending signup stored for: {signup_data.email}", flush=True)
+        
+        # Send verification email with code
+        try:
+            await send_verification_email(signup_data.email, verification_code)
+            print(f"[SIGNUP] Verification code sent to: {signup_data.email}", flush=True)
+        except Exception as e:
+            print(f"[SIGNUP] ERROR: Failed to send verification email: {e}", flush=True)
+            # Delete pending signup if email fails
+            await pending_signups_collection.delete_one({"email": signup_data.email})
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to send verification email. Please try again."
+            )
+        
+        print(f"[SIGNUP] Signup initiated for: {signup_data.email}. Awaiting verification.", flush=True)
+        
+        # Return success message - user must verify to complete signup
+        return {
+            "message": "Verification code sent to your email. Please verify to complete signup.",
+            "email": signup_data.email,
+            "requires_verification": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SIGNUP] ERROR: {type(e).__name__}: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
+
+@app.post("/auth/verify")
+async def verify_email(verify_data: models.VerifyEmail):
+    """
+    Verify email with 6-digit code and create organization + user.
     
-    # Generate organization slug
-    base_slug = generate_slug(signup_data.organization_name)
-    slug = base_slug
-    counter = 1
+    Args:
+        verify_data: Email and verification code
+    """
+    print(f"[VERIFY] Attempting verification for: {verify_data.email}", flush=True)
     
-    # Ensure slug is unique
-    while await organizations_collection.find_one({"slug": slug}):
-        slug = f"{base_slug}-{counter}"
-        counter += 1
+    # Check pending signups
+    pending = await pending_signups_collection.find_one({"email": verify_data.email})
+    if not pending:
+        raise HTTPException(status_code=400, detail="No pending signup found for this email")
     
-    # Create organization
-    new_organization = {
-        "name": signup_data.organization_name,
-        "slug": slug,
-        "logo_url": None,
-        "settings": {},
-        "created_at": datetime.utcnow(),
-        "is_active": True
-    }
+    # Check if code matches
+    if pending.get("verification_code") != verify_data.code:
+        print(f"[VERIFY] Invalid code provided for: {verify_data.email}", flush=True)
+        raise HTTPException(status_code=400, detail="Invalid verification code")
     
-    org_result = await organizations_collection.insert_one(new_organization)
-    organization_id = str(org_result.inserted_id)
+    # Check if code has expired
+    if pending.get("verification_code_expiry") and pending["verification_code_expiry"] < datetime.utcnow():
+        print(f"[VERIFY] Expired code for: {verify_data.email}", flush=True)
+        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
     
-    # Create first admin user
-    hashed_password = hash_password(signup_data.password)
-    verification_token = secrets.token_urlsafe(32)
+    # Code is valid - create organization and user
+    try:
+        # Create organization
+        new_organization = {
+            "name": pending["organization_name"],
+            "slug": pending["organization_slug"],
+            "logo_url": None,
+            "settings": {},
+            "created_at": datetime.utcnow(),
+            "is_active": True
+        }
+        
+        org_result = await organizations_collection.insert_one(new_organization)
+        organization_id = str(org_result.inserted_id)
+        print(f"[VERIFY] Organization created with ID: {organization_id}", flush=True)
+        
+        # Create user
+        new_user = {
+            "organization_id": organization_id,
+            "email": pending["email"],
+            "hashed_password": pending["hashed_password"],
+            "role": "admin",
+            "is_active": True,
+            "is_verified": True,  # Already verified
+            "created_at": datetime.utcnow()
+        }
+        
+        user_result = await users_collection.insert_one(new_user)
+        user_id = str(user_result.inserted_id)
+        print(f"[VERIFY] User created with ID: {user_id}", flush=True)
+        
+        # Delete pending signup
+        await pending_signups_collection.delete_one({"email": verify_data.email})
+        print(f"[VERIFY] Pending signup removed for: {verify_data.email}", flush=True)
+        
+        # Create JWT token for auto-login
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={
+                "sub": pending["email"],
+                "user_id": user_id,
+                "organization_id": organization_id,
+                "role": "admin"
+            },
+            expires_delta=access_token_expires
+        )
+        
+        print(f"[VERIFY] Verification successful for: {verify_data.email}", flush=True)
+        
+        return {
+            "message": "Email verified successfully. You can now login.",
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+        
+    except Exception as e:
+        print(f"[VERIFY] ERROR creating user/org: {e}", flush=True)
+        raise HTTPException(status_code=500, detail="Failed to create account after verification")
+
+@app.post("/auth/resend-verification")
+async def resend_verification_code(resend_data: models.ResendVerification):
+    """
+    Resend verification code to user's email.
     
-    new_user = {
-        "organization_id": organization_id,
-        "email": signup_data.email,
-        "hashed_password": hashed_password,
-        "role": "admin",
-        "is_active": True,
-        "is_verified": False,
-        "verification_token": verification_token,
-        "created_at": datetime.utcnow()
-    }
+    Args:
+        resend_data: Email address
+    """
+    # Check pending signups
+    pending = await pending_signups_collection.find_one({"email": resend_data.email})
+    if not pending:
+        raise HTTPException(status_code=400, detail="No pending signup found for this email")
     
-    user_result = await users_collection.insert_one(new_user)
-    user_id = str(user_result.inserted_id)
+    # Generate new 6-digit verification code
+    import random
+    verification_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    
+    # Set new expiry time (10 minutes from now)
+    verification_expiry = datetime.utcnow() + timedelta(minutes=10)
+    
+    # Update pending signup with new code
+    await pending_signups_collection.update_one(
+        {"email": resend_data.email},
+        {"$set": {
+            "verification_code": verification_code,
+            "verification_code_expiry": verification_expiry
+        }}
+    )
     
     # Send verification email
-    await send_verification_email(signup_data.email, verification_token)
-    
-    # Create JWT with organization context
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": signup_data.email,
-            "user_id": user_id,
-            "organization_id": organization_id,
-            "role": "admin"
-        },
-        expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/auth/verify/{token}")
-async def verify_email(token: str):
-    user = await users_collection.find_one({"verification_token": token})
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    
-    await users_collection.update_one(
-        {"_id": user["_id"]},
-        {"$set": {"is_verified": True, "verification_token": None}}
-    )
-    return {"message": "Email verified successfully"}
+    try:
+        await send_verification_email(resend_data.email, verification_code)
+        print(f"[RESEND] New verification code sent to: {resend_data.email}", flush=True)
+        return {"message": "Verification code sent successfully"}
+    except Exception as e:
+        print(f"[RESEND] Failed to send verification email: {e}", flush=True)
+        raise HTTPException(status_code=500, detail="Failed to send verification email")
 
 @app.options("/auth/login")
 async def login_options():
@@ -301,7 +457,7 @@ async def login(user: UserLogin):
         raise HTTPException(status_code=400, detail="Invalid credentials")
     
     if not db_user["is_verified"]:
-        raise HTTPException(status_code=400, detail="Email not verified")
+        raise HTTPException(status_code=400, detail="Email not verified. Please check your email for verification link.")
     
     # Create JWT with organization context
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -474,6 +630,33 @@ async def list_pending_invitations(request: Request):
         )
         for inv in invitations
     ]
+
+@app.get("/invitations/token/{token}", response_model=InvitationResponse)
+async def get_invitation_by_token(token: str):
+    """
+    Get invitation details by token (for invitation acceptance page).
+    Public endpoint - no authentication required.
+    
+    Requirements: 8.3
+    """
+    invitation = await InvitationService.get_invitation_by_token(token)
+    
+    if not invitation:
+        raise HTTPException(
+            status_code=404,
+            detail="Invitation not found"
+        )
+    
+    return InvitationResponse(
+        id=str(invitation["_id"]),
+        organization_id=invitation["organization_id"],
+        email=invitation["email"],
+        role=invitation["role"],
+        status=invitation["status"],
+        invited_by=invitation["invited_by"],
+        expires_at=invitation["expires_at"],
+        created_at=invitation["created_at"]
+    )
 
 @app.post("/invitations/accept/{token}", response_model=Token)
 async def accept_invitation(token: str, accept_data: InvitationAccept):

@@ -48,8 +48,8 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Seed database with sample data
-python seed_data.py
+# Initialize database indexes
+python init_db.py
 ```
 
 ### 3. Start Ollama Service
@@ -155,10 +155,10 @@ Error: ModuleNotFoundError
 Solution: pip install -r requirements.txt
 ```
 
-### Database not seeded
+### Database is empty
 ```
-Error: No users found
-Solution: Run python seed_data.py
+Info: No data in database
+Solution: Sign up with a new organization at http://localhost:3000/signup
 ```
 
 ### Ollama connection error
@@ -222,13 +222,13 @@ hr_new/
 - `PUT /tasks/{id}` - Update task
 - `DELETE /tasks/{id}` - Delete task
 
-## Sample Users
+## Getting Started
 
-After running the seed script, you can login with:
-
-- **Admin**: admin@hrnexus.com / admin123
-- **HR Manager**: hr.manager@hrnexus.com / manager123
-- **Recruiter**: recruiter@hrnexus.com / recruiter123
+1. Navigate to http://localhost:3000
+2. Click "Sign Up" to create your organization
+3. Enter your organization name, email, and password
+4. Verify your email using the verification code
+5. Start using the application with real data!
 
 ## Environment Variables
 

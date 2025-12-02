@@ -20,6 +20,7 @@ import {
     LogOut,
     ChevronRight,
     Sparkles,
+    Settings,
 } from 'lucide-react';
 
 // ============================================================================
@@ -30,6 +31,7 @@ const mainNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'AI Assistant', href: '/ai-assistant', icon: Sparkles, highlight: true },
     { name: 'Documents', href: '/documents', icon: FileText },
+    { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 const hrPillars = [

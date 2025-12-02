@@ -28,7 +28,7 @@ export const useToast = () => {
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = useCallback((type: ToastType, message: string) => {
+    const showToastInternal = useCallback((type: ToastType, message: string) => {
         const id = Math.random().toString(36).substring(7);
         setToasts((prev) => [...prev, { id, type, message }]);
 
@@ -37,12 +37,22 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }, 5000);
     }, []);
 
+    // Set global reference for standalone function
+    React.useEffect(() => {
+        globalShowToast = (message: string, type: ToastType) => {
+            showToastInternal(type, message);
+        };
+        return () => {
+            globalShowToast = null;
+        };
+    }, [showToastInternal]);
+
     const removeToast = (id: string) => {
         setToasts((prev) => prev.filter((toast) => toast.id !== id));
     };
 
     return (
-        <ToastContext.Provider value={{ showToast }}>
+        <ToastContext.Provider value={{ showToast: (type, message) => showToastInternal(type, message) }}>
             {children}
             <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-md">
                 {toasts.map((toast) => (
@@ -51,6 +61,17 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
         </ToastContext.Provider>
     );
+};
+
+// Standalone showToast function for use outside of React components
+let globalShowToast: ((message: string, type: ToastType) => void) | null = null;
+
+export const showToast = (message: string, type: ToastType = 'info') => {
+    if (globalShowToast) {
+        globalShowToast(message, type);
+    } else {
+        console.warn('Toast provider not initialized');
+    }
 };
 
 const ToastItem: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onClose }) => {

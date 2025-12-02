@@ -161,9 +161,27 @@ export interface SignupCredentials {
     password: string;
 }
 
+export interface OrganizationSignupCredentials {
+    organization_name: string;
+    email: string;
+    password: string;
+}
+
 export interface AuthResponse {
-    access_token: string;
-    token_type: string;
+    access_token?: string;
+    token_type?: string;
+    message?: string;
+    email?: string;
+    requires_verification?: boolean;
+}
+
+export interface VerifyEmailRequest {
+    email: string;
+    code: string;
+}
+
+export interface ResendVerificationRequest {
+    email: string;
 }
 
 export const authApi = {
@@ -177,12 +195,143 @@ export const authApi = {
         return response.data;
     },
 
+    organizationSignup: async (credentials: OrganizationSignupCredentials): Promise<AuthResponse> => {
+        const response = await api.post('/organizations/signup', credentials);
+        return response.data;
+    },
+
+    verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
+        const response = await api.post('/auth/verify', data);
+        return response.data;
+    },
+
+    resendVerification: async (data: ResendVerificationRequest): Promise<{ message: string }> => {
+        const response = await api.post('/auth/resend-verification', data);
+        return response.data;
+    },
+
     logout: () => {
         localStorage.removeItem('access_token');
+        localStorage.removeItem('organization_id');
     },
 
     isAuthenticated: (): boolean => {
         return !!localStorage.getItem('access_token');
+    },
+};
+
+// Organization API
+export interface Organization {
+    id: string;
+    name: string;
+    slug: string;
+    logo_url?: string;
+    settings?: Record<string, any>;
+    created_at: string;
+    is_active: boolean;
+}
+
+export interface OrganizationStats {
+    active_users: number;
+    total_documents: number;
+    total_tasks: number;
+    completed_tasks: number;
+    pending_tasks: number;
+}
+
+export const organizationApi = {
+    getCurrent: async (): Promise<Organization> => {
+        const response = await api.get('/organizations/me');
+        return response.data;
+    },
+
+    update: async (data: Partial<Organization>): Promise<Organization> => {
+        const response = await api.put('/organizations/me', data);
+        return response.data;
+    },
+
+    getStats: async (): Promise<OrganizationStats> => {
+        const response = await api.get('/organizations/me/stats');
+        return response.data;
+    },
+};
+
+// Invitation API
+export interface Invitation {
+    id: string;
+    organization_id: string;
+    email: string;
+    role: string;
+    token: string;
+    invited_by: string;
+    expires_at: string;
+    status: string;
+    created_at: string;
+}
+
+export interface InvitationCreate {
+    email: string;
+    role: string;
+}
+
+export interface InvitationAccept {
+    password: string;
+}
+
+export const invitationApi = {
+    create: async (data: InvitationCreate): Promise<Invitation> => {
+        const response = await api.post('/invitations', data);
+        return response.data;
+    },
+
+    getAll: async (): Promise<Invitation[]> => {
+        const response = await api.get('/invitations');
+        return response.data;
+    },
+
+    accept: async (token: string, data: InvitationAccept): Promise<AuthResponse> => {
+        const response = await api.post(`/invitations/accept/${token}`, data);
+        return response.data;
+    },
+
+    revoke: async (id: string): Promise<void> => {
+        await api.delete(`/invitations/${id}`);
+    },
+
+    getByToken: async (token: string): Promise<Invitation> => {
+        const response = await api.get(`/invitations/token/${token}`);
+        return response.data;
+    },
+};
+
+// User API
+export interface User {
+    id: string;
+    organization_id: string;
+    email: string;
+    role: string;
+    is_active: boolean;
+    created_at: string;
+}
+
+export const userApi = {
+    getAll: async (): Promise<User[]> => {
+        const response = await api.get('/users');
+        return response.data;
+    },
+
+    get: async (id: string): Promise<User> => {
+        const response = await api.get(`/users/${id}`);
+        return response.data;
+    },
+
+    updateRole: async (id: string, role: string): Promise<User> => {
+        const response = await api.put(`/users/${id}/role`, { role });
+        return response.data;
+    },
+
+    remove: async (id: string): Promise<void> => {
+        await api.delete(`/users/${id}`);
     },
 };
 

@@ -23,6 +23,7 @@ users_collection = async_db["users"]
 tasks_collection = async_db["tasks"]
 documents_collection = async_db["documents"]
 chat_history_collection = async_db["chat_history"]
+pending_signups_collection = async_db["pending_signups"]  # Temporary storage for unverified signups
 
 def get_database():
     """Get async database instance"""
@@ -62,5 +63,9 @@ def create_indexes():
     # Chat history indexes
     sync_db["chat_history"].create_index([("organization_id", 1), ("user_id", 1)])
     sync_db["chat_history"].create_index([("updated_at", -1)])
+    
+    # Pending signups indexes (with TTL for auto-cleanup after 24 hours)
+    sync_db["pending_signups"].create_index("email", unique=True)
+    sync_db["pending_signups"].create_index("verification_code_expiry", expireAfterSeconds=86400)  # 24 hours
     
     print("Database indexes created successfully")
