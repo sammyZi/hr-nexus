@@ -1,4 +1,4 @@
-"use clisent";
+"use client";
 
 import { useState, useEffect } from "react";
 import { CheckCircle2, Circle, Trash2, ArrowLeft } from "lucide-react";
