@@ -1,4 +1,4 @@
-"use client";
+"use clisent";
 
 import { useState, useEffect } from "react";
 import { CheckCircle2, Circle, Trash2, ArrowLeft } from "lucide-react";
@@ -42,7 +42,7 @@ export default function CompletedTasksPage() {
         const newStatus = currentStatus === "Completed" ? "Pending" : "Completed";
         try {
             if (task.id) {
-                await taskApi.updateStatus(task.id, newStatus);
+                await taskApi.updateStatus(String(task.id), newStatus);
             }
             setTasks(tasks.map(t => t._id === task._id ? { ...t, status: newStatus } : t));
         } catch (error) {
@@ -53,7 +53,7 @@ export default function CompletedTasksPage() {
     const deleteTask = async (task: Task) => {
         try {
             if (task.id) {
-                await taskApi.delete(task.id);
+                await taskApi.delete(String(task.id));
             }
             setTasks(tasks.filter(t => t._id !== task._id));
         } catch (error) {

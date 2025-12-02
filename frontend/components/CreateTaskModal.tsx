@@ -6,11 +6,21 @@ import { taskApi, TaskCreate } from '@/lib/api';
 import { useToast } from './ui/Toast';
 import { Select, SelectOption } from './ui/Select';
 
+interface Task {
+    id: string;
+    title: string;
+    description?: string;
+    category?: string;
+    priority?: string;
+    status: string;
+}
+
 interface CreateTaskModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
     defaultCategory?: string;
+    editTask?: Task;
 }
 
 const CATEGORY_OPTIONS: SelectOption[] = [
@@ -35,16 +45,37 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     onClose,
     onSuccess,
     defaultCategory,
+    editTask,
 }) => {
     const { showToast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState<TaskCreate>({
-        title: '',
-        description: '',
-        category: defaultCategory || 'Recruiting',
-        priority: 'Medium',
+        title: editTask?.title || '',
+        description: editTask?.description || '',
+        category: editTask?.category || defaultCategory || 'Recruiting',
+        priority: editTask?.priority || 'Medium',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Update form when editTask changes
+    React.useEffect(() => {
+        if (editTask) {
+            setFormData({
+                title: editTask.title,
+                description: editTask.description || '',
+                category: editTask.category || 'Recruiting',
+                priority: editTask.priority || 'Medium',
+            });
+        } else {
+            setFormData({
+                title: '',
+                description: '',
+                category: defaultCategory || 'Recruiting',
+                priority: 'Medium',
+            });
+        }
+        setErrors({});
+    }, [editTask, defaultCategory]);
 
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {};
@@ -68,8 +99,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
         setIsLoading(true);
         try {
-            await taskApi.create(formData);
-            showToast('success', 'Task created successfully!');
+            if (editTask) {
+                // Update existing task
+                await taskApi.update(editTask.id, formData);
+                showToast('success', 'Task updated successfully!');
+            } else {
+                // Create new task
+                await taskApi.create(formData);
+                showToast('success', 'Task created successfully!');
+            }
             onSuccess();
             onClose();
             // Reset form
@@ -81,8 +119,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             });
             setErrors({});
         } catch (error) {
-            showToast('error', 'Failed to create task. Please try again.');
-            console.error('Error creating task:', error);
+            showToast('error', editTask ? 'Failed to update task. Please try again.' : 'Failed to create task. Please try again.');
+            console.error('Error saving task:', error);
         } finally {
             setIsLoading(false);
         }
@@ -106,7 +144,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
                             <Plus size={20} />
                         </div>
-                        <h2 className="text-xl font-semibold text-gray-900">Create New Task</h2>
+                        <h2 className="text-xl font-semibold text-gray-900">{editTask ? 'Edit Task' : 'Create New Task'}</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -207,7 +245,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         ) : (
                             <>
                                 <CheckCircle2 size={18} />
-                                Create Task
+                                {editTask ? 'Update Task' : 'Create Task'}
                             </>
                         )}
                     </button>

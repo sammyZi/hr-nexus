@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, CheckCircle2, MessageSquare, Sparkles, Users, Calendar, FileText, BarChart3, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import GridBackground from "./GridBackground";
@@ -8,19 +9,19 @@ import GridBackground from "./GridBackground";
 const HeroSection = () => {
 
     return (
-        <section className="relative min-h-screen pt-24 pb-16 px-6 overflow-hidden">
+        <section className="relative h-screen pt-16 pb-8 px-6 overflow-hidden flex items-center">
             {/* Grid Background Component */}
             <GridBackground />
             
             {/* Content */}
-            <div className="max-w-6xl mx-auto relative z-10">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
+            <div className="max-w-7xl mx-auto relative z-10 w-full">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
                     {/* Left - Text */}
                     <motion.div 
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.6 }}
-                        className="space-y-5"
+                        className="space-y-5 lg:col-span-2"
                     >
                         {/* Badge */}
                         <motion.div 
@@ -156,12 +157,12 @@ const HeroSection = () => {
                         </motion.div>
                     </motion.div>
                     
-                    {/* Right - App Screenshot Placeholder */}
+                    {/* Right - App Screenshot */}
                     <motion.div
                         initial={{ opacity: 0, x: 30, y: 20 }}
                         animate={{ opacity: 1, x: 0, y: 0 }}
                         transition={{ duration: 0.7, delay: 0.2 }}
-                        className="relative"
+                        className="relative lg:col-span-3"
                     >
                         <div className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
                             {/* Header */}
@@ -174,36 +175,32 @@ const HeroSection = () => {
                                 <span className="flex-1 text-center text-xs text-gray-500 font-medium">HR Nexus Dashboard</span>
                             </div>
 
-                            {/* App Screenshot Placeholder */}
-                            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center min-h-[500px] w-full relative overflow-hidden">
-                                <div className="text-center space-y-3 z-10">
-                                    <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm mx-auto flex items-center justify-center">
-                                        <Sparkles size={40} className="text-white" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-white">App Screenshot</p>
-                                        <p className="text-xs text-gray-200 mt-1">Add your PNG image here</p>
-                                    </div>
-                                </div>
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                            {/* Dashboard Screenshot */}
+                            <div className="relative w-full">
+                                <Image
+                                    src="/assets/dashboard.png"
+                                    alt="HR Nexus Dashboard"
+                                    width={1200}
+                                    height={800}
+                                    className="w-full h-auto max-h-[400px] object-contain"
+                                    priority
+                                />
                             </div>
                         </div>
-                        
-                        {/* Floating Badge */}
+
+                        {/* Floating Badge - Top Right */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5, delay: 1 }}
-                            className="absolute -right-4 top-20 bg-white rounded-xl p-4 shadow-lg border border-gray-200 w-48"
+                            className="absolute -top-4 -right-4 bg-white rounded-xl p-4 shadow-lg border border-gray-200 flex items-center gap-3"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                                    <CheckCircle2 size={18} className="text-green-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-gray-900">All Set!</p>
-                                    <p className="text-xs text-gray-600">Your HR data is ready</p>
-                                </div>
+                            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle2 size={20} className="text-green-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900">All Set!</p>
+                                <p className="text-xs text-gray-600">Your HR data is ready</p>
                             </div>
                         </motion.div>
                     </motion.div>

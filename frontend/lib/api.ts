@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -13,22 +13,30 @@ const api = axios.create({
 
 // Add request interceptor to include auth token
 api.interceptors.request.use(
-    (config) => {
+    (config: InternalAxiosRequestConfig) => {
         // Only access localStorage on client side
         if (typeof window !== 'undefined') {
             const token = localStorage.getItem('access_token');
             console.log('[API Interceptor] Token exists:', !!token);
             console.log('[API Interceptor] Request URL:', config.url);
+            console.log('[API Interceptor] Current headers:', config.headers);
+            
             if (token) {
+                // Ensure headers object exists
+                if (!config.headers) {
+                    config.headers = {} as any;
+                }
                 config.headers.Authorization = `Bearer ${token}`;
-                console.log('[API Interceptor] Added Authorization header');
+                console.log('[API Interceptor] Added Authorization header:', config.headers.Authorization?.substring(0, 20) + '...');
             } else {
                 console.warn('[API Interceptor] No token found in localStorage');
+                console.warn('[API Interceptor] localStorage keys:', Object.keys(localStorage));
             }
         }
         return config;
     },
     (error) => {
+        console.error('[API Interceptor] Request error:', error);
         return Promise.reject(error);
     }
 );
@@ -37,10 +45,37 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        // Check if it's a network error
+        if (!error.response) {
+            console.error('[API Interceptor] Network Error - Cannot reach server');
+            console.error('[API Interceptor] Error details:', {
+                message: error.message,
+                code: error.code,
+                url: error.config?.url,
+                baseURL: error.config?.baseURL,
+            });
+            console.error('[API Interceptor] Is backend running at', API_BASE_URL, '?');
+            return Promise.reject(error);
+        }
+
+        console.error('[API Interceptor] Response error:', {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            url: error.config?.url,
+            method: error.config?.method,
+            hasAuthHeader: !!error.config?.headers?.Authorization,
+            data: error.response?.data,
+        });
+        
         if (error.response?.status === 401) {
+            console.error('[API Interceptor] 401 Unauthorized - Token may be invalid or expired');
+            console.error('[API Interceptor] Request headers:', error.config?.headers);
+            
             // Clear token and redirect to signin
             localStorage.removeItem('access_token');
+            localStorage.removeItem('organization_id');
             if (typeof window !== 'undefined') {
+                console.warn('[API Interceptor] Redirecting to signin...');
                 window.location.href = '/signin';
             }
         }

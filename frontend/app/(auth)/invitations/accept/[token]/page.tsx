@@ -75,10 +75,13 @@ export default function AcceptInvitationPage() {
             const response = await invitationApi.accept(token, { password });
             
             // Store token and extract organization_id
-            setToken(response.access_token);
-            
-            showToast("Welcome! Your account has been created.", "success");
-            router.push("/dashboard");
+            if (response.access_token) {
+                setToken(response.access_token);
+                showToast("Welcome! Your account has been created.", "success");
+                router.push("/dashboard");
+            } else {
+                showToast("Failed to receive authentication token", "error");
+            }
         } catch (error: any) {
             const message = error.response?.data?.detail || "Failed to accept invitation";
             showToast(message, "error");
