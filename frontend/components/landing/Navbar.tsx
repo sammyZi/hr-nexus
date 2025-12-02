@@ -27,12 +27,12 @@ const Navbar = () => {
             transition={{ duration: 0.5 }}
             className={`fixed top-3 left-0 right-0 mx-auto w-fit z-50 transition-all duration-300 rounded-2xl ${
                 scrolled 
-                    ? "bg-white/50 border-2 border-gray-200/50 shadow-xl shadow-gray-300/20" 
-                    : "bg-white/40 border-2 border-gray-200/40"
+                    ? "bg-white/30 border-2 border-white/30 shadow-xl shadow-gray-300/20" 
+                    : "bg-white/20 border-2 border-white/20"
             }`}
             style={{
-                backdropFilter: "blur(60px)",
-                WebkitBackdropFilter: "blur(60px)"
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)"
             }}
         >
             <div className="px-6 py-3">
