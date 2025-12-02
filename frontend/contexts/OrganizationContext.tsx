@@ -38,6 +38,12 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
 
     // Function to fetch organization data
     const fetchOrganization = async () => {
+        // Only run on client side
+        if (typeof window === 'undefined') {
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -45,15 +51,25 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
             // Check if user is authenticated
             const token = localStorage.getItem('access_token');
             if (!token) {
+                console.log('[OrganizationContext] No access token found');
                 setLoading(false);
                 return;
             }
 
+            console.log('[OrganizationContext] Fetching organization with token:', token.substring(0, 20) + '...');
+
             // Fetch organization data from API
             const response = await api.get('/organizations/me');
+            console.log('[OrganizationContext] Organization fetched successfully:', response.data);
             setOrganization(response.data);
         } catch (err: any) {
-            console.error('Failed to fetch organization:', err);
+            console.error('[OrganizationContext] Failed to fetch organization:', err);
+            console.error('[OrganizationContext] Error details:', {
+                status: err.response?.status,
+                statusText: err.response?.statusText,
+                data: err.response?.data,
+                message: err.message,
+            });
             setError(err.response?.data?.detail || 'Failed to load organization');
             setOrganization(null);
         } finally {

@@ -115,6 +115,8 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization", "")
         
         if not auth_header.startswith("Bearer "):
+            print(f"[AUTH] No Bearer token in request to {path}", flush=True)
+            print(f"[AUTH] Authorization header: {auth_header[:50] if auth_header else 'None'}", flush=True)
             return Response(
                 content='{"detail":"Not authenticated"}',
                 status_code=401,
@@ -1121,8 +1123,23 @@ def process_document_background(doc_id: str, file_path: str, file_ext: str, orga
         print(f"[DOC {doc_id}] ✗ Processing error: {str(e)}")
 
 @app.get("/documents/{doc_id}/status")
-def get_document_status(doc_id: str):
+async def get_document_status(request: Request, doc_id: str):
     """Get processing status of a document"""
+    if not ObjectId.is_valid(doc_id):
+        raise HTTPException(status_code=400, detail="Invalid document ID")
+    
+    # Get organization_id from request state
+    organization_id = request.state.organization_id
+    
+    # Verify document belongs to user's organization
+    doc = await documents_collection.find_one({
+        "_id": ObjectId(doc_id),
+        "organization_id": organization_id
+    })
+    
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
     status = processing_status.get(doc_id, {"status": "unknown"})
     return status
 

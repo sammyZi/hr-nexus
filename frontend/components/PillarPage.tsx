@@ -54,7 +54,7 @@ export const PillarPage: React.FC<PillarPageProps> = ({
         showToast('success', 'Task created successfully');
     };
 
-    const handleStatusChange = async (taskId: number, newStatus: string) => {
+    const handleStatusChange = async (taskId: string, newStatus: string) => {
         try {
             await taskApi.updateStatus(taskId, newStatus);
             fetchTasks();
@@ -65,7 +65,7 @@ export const PillarPage: React.FC<PillarPageProps> = ({
         }
     };
 
-    const handleDeleteTask = async (taskId: number) => {
+    const handleDeleteTask = async (taskId: string) => {
         try {
             await taskApi.delete(taskId);
             fetchTasks();
