@@ -33,7 +33,7 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 525600  # 1 year (365 days * 24 hours * 60 minutes)
 UPLOAD_DIR = "./uploads"
 
 # Create uploads directory if it doesn't exist
@@ -233,7 +233,11 @@ async def signup(user: UserCreate):
         print(f"Warning: Could not send verification email: {e}")
         # Continue anyway - user can verify later or skip verification in dev
     
-    access_token = create_access_token(data={"sub": user.email})
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=access_token_expires
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.options("/organizations/signup")

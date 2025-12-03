@@ -5,7 +5,7 @@ export default function LearningDevelopmentPage() {
     return (
         <PillarPage
             pillarName="Learning & Development"
-            pillarCategory="Learning_Development"
+            pillarCategory="Learning Development"
             pillarDescription="Organize training programs, workshops, and career development"
             pillarIcon={<GraduationCap size={28} />}
         />

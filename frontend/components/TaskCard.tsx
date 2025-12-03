@@ -23,8 +23,8 @@ const PILLAR_COLORS: Record<string, string> = {
     Onboarding: 'bg-green-500',
     Payroll: 'bg-emerald-600',
     Benefits: 'bg-pink-500',
-    Learning_Development: 'bg-yellow-500',
-    Employee_Relations: 'bg-purple-500',
+    'Learning Development': 'bg-yellow-500',
+    'Employee Relations': 'bg-purple-500',
     Performance: 'bg-orange-500',
     Offboarding: 'bg-red-500',
 };
@@ -72,7 +72,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate }) => {
     };
 
     const pillarColor = PILLAR_COLORS[task.category] || 'bg-gray-500';
-    const categoryLabel = task.category.replace('_', ' & ');
+    const categoryLabel = task.category;
     
     // Priority-based accent bar color
     const priorityBarColor = task.priority === 'High' ? 'bg-red-500' : 

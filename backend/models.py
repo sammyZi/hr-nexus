@@ -39,8 +39,8 @@ class TaskCategory(str, enum.Enum):
     Onboarding = "Onboarding"
     Payroll = "Payroll"
     Benefits = "Benefits"
-    Learning_Development = "Learning_Development"
-    Employee_Relations = "Employee_Relations"
+    LearningDevelopment = "Learning Development"
+    EmployeeRelations = "Employee Relations"
     Performance = "Performance"
     Offboarding = "Offboarding"
 

@@ -1,30 +1,3 @@
-"""
-Production-Ready RAG System (Enhanced)
-======================================
-
-A high-performance, scalable RAG (Retrieval-Augmented Generation) system designed for:
-- 500GB+ document ingestion
-- Sub-second retrieval latency
-- Precise document-level citations
-- Session-based conversation context (cleared on close/clear)
-- Adaptive chunking based on document structure
-- Query expansion and re-ranking for better relevance
-- Multi-level retrieval strategy
-
-PUBLIC API (DO NOT CHANGE SIGNATURES):
---------------------------------------
-1. process_document(file_path: str, file_type: str = None) -> dict
-2. get_answer_with_fallback(query: str, conversation_history: list = None, stream: bool = False)
-
-ARCHITECTURE:
--------------
-- Adaptive document processing with structure analysis
-- Multi-strategy vector search with re-ranking
-- Query expansion for better concept coverage
-- Smart caching for frequently accessed documents
-- Citation tracking with source metadata
-- Metadata-based filtering for precision
-"""
 
 import os
 import time
