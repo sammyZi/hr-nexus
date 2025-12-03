@@ -5,7 +5,7 @@ export default function EmployeeRelationsPage() {
     return (
         <PillarPage
             pillarName="Employee Relations"
-            pillarCategory="Employee_Relations"
+            pillarCategory="Employee Relations"
             pillarDescription="Handle employee concerns, conflicts, and workplace culture"
             pillarIcon={<Users size={28} />}
         />

@@ -28,8 +28,8 @@ const CATEGORY_OPTIONS: SelectOption[] = [
     { value: 'Onboarding', label: 'Onboarding', color: 'bg-green-500' },
     { value: 'Payroll', label: 'Payroll', color: 'bg-emerald-600' },
     { value: 'Benefits', label: 'Benefits', color: 'bg-pink-500' },
-    { value: 'Learning_Development', label: 'Learning & Development', color: 'bg-yellow-500' },
-    { value: 'Employee_Relations', label: 'Employee Relations', color: 'bg-purple-500' },
+    { value: 'Learning Development', label: 'Learning Development', color: 'bg-yellow-500' },
+    { value: 'Employee Relations', label: 'Employee Relations', color: 'bg-purple-500' },
     { value: 'Performance', label: 'Performance', color: 'bg-orange-500' },
     { value: 'Offboarding', label: 'Offboarding', color: 'bg-red-500' },
 ];

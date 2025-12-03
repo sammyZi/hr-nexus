@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, Trash2, Plus, Filter, Clock, CheckCheck, AlertCircle, Target, TrendingUp, Search, X, Edit2 } from "lucide-react";
 import { taskApi } from "@/lib/api";
@@ -28,6 +28,8 @@ export default function TasksPage() {
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
     const [confirmDialog, setConfirmDialog] = useState<{
         isOpen: boolean;
         title: string;
@@ -105,26 +107,28 @@ export default function TasksPage() {
         });
     };
 
-    const filteredTasks = tasks.filter(task => {
-        // Priority filter
-        const priorityMatch = filterPriority === "All" || task.priority === filterPriority;
-        
-        // Category filter
-        const categoryMatch = filterPillar === "All" || task.category === filterPillar;
-        
-        // Search filter - searches in title, description, priority, and category
-        const searchLower = searchQuery.toLowerCase().trim();
-        const searchMatch = !searchQuery || 
-            task.title.toLowerCase().includes(searchLower) ||
-            (task.description && task.description.toLowerCase().includes(searchLower)) ||
-            (task.priority && task.priority.toLowerCase().includes(searchLower)) ||
-            (task.category && task.category.toLowerCase().includes(searchLower));
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(task => {
+            // Priority filter
+            const priorityMatch = filterPriority === "All" || task.priority === filterPriority;
+            
+            // Category filter
+            const categoryMatch = filterPillar === "All" || task.category === filterPillar;
+            
+            // Search filter - searches in title, description, priority, and category
+            const searchLower = searchQuery.toLowerCase().trim();
+            const searchMatch = !searchQuery || 
+                task.title.toLowerCase().includes(searchLower) ||
+                (task.description && task.description.toLowerCase().includes(searchLower)) ||
+                (task.priority && task.priority.toLowerCase().includes(searchLower)) ||
+                (task.category && task.category.toLowerCase().includes(searchLower));
 
-        return priorityMatch && categoryMatch && searchMatch && task.status !== "Completed";
-    });
+            return priorityMatch && categoryMatch && searchMatch && task.status !== "Completed";
+        });
+    }, [tasks, filterPriority, filterPillar, searchQuery]);
 
-    const priorities = ["All", ...new Set(tasks.map(t => t.priority).filter(Boolean))];
-    const categories = ["All", ...new Set(tasks.map(t => t.category).filter(Boolean))];
+    const priorities = useMemo(() => ["All", ...new Set(tasks.map(t => t.priority).filter(Boolean))], [tasks]);
+    const categories = useMemo(() => ["All", ...new Set(tasks.map(t => t.category).filter(Boolean))], [tasks]);
 
     const getPriorityColor = (priority?: string) => {
         switch (priority) {
@@ -139,7 +143,7 @@ export default function TasksPage() {
         }
     };
 
-    const TaskCard = ({ task, index }: { task: Task; index: number }) => {
+    const TaskCard = useCallback(({ task, index }: { task: Task; index: number }) => {
         const priorityConfig = {
             High: { color: "from-red-500 to-red-600", bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
             Medium: { color: "from-orange-500 to-orange-600", bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
@@ -223,7 +227,7 @@ export default function TasksPage() {
                 </div>
             </motion.div>
         );
-    };
+    }, [toggleTask, deleteTask, setEditingTask]);
 
     const activeTasks = filteredTasks.filter(t => t.status !== "Completed").length;
     const completedTasks = filteredTasks.filter(t => t.status === "Completed").length;
@@ -231,141 +235,215 @@ export default function TasksPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            <header className="bg-white border-b border-gray-200 shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Tasks</h1>
-                            <p className="text-gray-600">Manage and track your HR tasks efficiently</p>
-                        </div>
-                        <button 
-                            onClick={() => setIsModalOpen(true)} 
-                            className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
-                        >
-                            <Plus size={20} className="group-hover:rotate-90 transition-transform" />
-                            New Task
-                        </button>
+            <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+                {/* Header Section */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
+                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+                        </span>
                     </div>
-
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-gray-500 text-sm font-medium mb-1">Total Tasks</p>
-                                    <p className="text-4xl font-bold text-gray-900">{filteredTasks.length}</p>
-                                </div>
-                                <div className="p-3 bg-blue-100 rounded-xl">
-                                    <Target size={28} className="text-blue-600" />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-gray-500 text-sm font-medium mb-1">Active</p>
-                                    <p className="text-4xl font-bold text-gray-900">{activeTasks}</p>
-                                </div>
-                                <div className="p-3 bg-orange-100 rounded-xl">
-                                    <Clock size={28} className="text-orange-600" />
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
+                    <button 
+                        onClick={() => setIsModalOpen(true)} 
+                        className="group px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+                    >
+                        <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+                        New Task
+                    </button>
                 </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-                {/* Search Bar */}
+                {/* Compact Search & Filter Bar */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"
+                    className="bg-white rounded-2xl border border-gray-200 shadow-sm relative z-50"
+                    style={{ overflow: 'visible' }}
                 >
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search tasks by title, description, priority, or category..."
-                            className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-colors text-gray-900 placeholder-gray-400"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery("")}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        )}
-                    </div>
-                    {searchQuery && (
-                        <p className="text-sm text-gray-500 mt-2">
-                            Found {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'} matching "{searchQuery}"
-                        </p>
-                    )}
-                </motion.div>
+                    <div className="p-4">
+                        <div className="flex flex-col lg:flex-row gap-3">
+                            {/* Search Input */}
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search tasks..."
+                                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-sm text-gray-900 placeholder-gray-400 bg-gray-50 hover:bg-white"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm"
-                >
-                    <div className="flex items-center gap-2 mb-5">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <Filter size={18} className="text-blue-600" />
+                            {/* Priority Filter */}
+                            <div className="relative lg:w-52 z-30">
+                                {showPriorityDropdown && (
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowPriorityDropdown(false)} />
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setShowPriorityDropdown(!showPriorityDropdown);
+                                        setShowCategoryDropdown(false);
+                                    }}
+                                    className={`relative w-full pl-9 pr-10 py-2.5 border-2 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 transition-all text-left ${
+                                        filterPriority === "High" ? "border-red-200 bg-red-50 text-red-700 focus:ring-red-500/20 focus:border-red-500" :
+                                        filterPriority === "Medium" ? "border-orange-200 bg-orange-50 text-orange-700 focus:ring-orange-500/20 focus:border-orange-500" :
+                                        filterPriority === "Low" ? "border-green-200 bg-green-50 text-green-700 focus:ring-green-500/20 focus:border-green-500" :
+                                        "border-gray-200 bg-white text-gray-700 focus:ring-blue-500/20 focus:border-blue-500 hover:border-gray-300"
+                                    }`}
+                                >
+                                    <AlertCircle size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                                        filterPriority === "High" ? "text-red-500" :
+                                        filterPriority === "Medium" ? "text-orange-500" :
+                                        filterPriority === "Low" ? "text-green-500" :
+                                        "text-gray-400"
+                                    }`} />
+                                    {filterPriority === "All" ? "Priority" : filterPriority}
+                                    <svg className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${showPriorityDropdown ? 'rotate-180' : ''}`} width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </button>
+                                {showPriorityDropdown && (
+                                    <div className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                        {(priorities as string[]).map(p => (
+                                            <button
+                                                key={p}
+                                                onClick={() => {
+                                                    setFilterPriority(p);
+                                                    setShowPriorityDropdown(false);
+                                                }}
+                                                className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors flex items-center gap-3 ${
+                                                    filterPriority === p 
+                                                        ? p === "High" ? "bg-red-50 text-red-700" :
+                                                          p === "Medium" ? "bg-orange-50 text-orange-700" :
+                                                          p === "Low" ? "bg-green-50 text-green-700" :
+                                                          "bg-blue-50 text-blue-700"
+                                                        : "text-gray-700 hover:bg-gray-50"
+                                                }`}
+                                            >
+                                                <AlertCircle size={14} className={
+                                                    p === "High" ? "text-red-500" :
+                                                    p === "Medium" ? "text-orange-500" :
+                                                    p === "Low" ? "text-green-500" :
+                                                    "text-gray-400"
+                                                } />
+                                                {p === "All" ? "All Priorities" : p}
+                                                {filterPriority === p && (
+                                                    <CheckCircle2 size={14} className="ml-auto" />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Category Filter */}
+                            <div className="relative lg:w-52 z-20">
+                                {showCategoryDropdown && (
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowCategoryDropdown(false)} />
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setShowCategoryDropdown(!showCategoryDropdown);
+                                        setShowPriorityDropdown(false);
+                                    }}
+                                    className={`relative w-full pl-9 pr-10 py-2.5 border-2 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 transition-all text-left ${
+                                        filterPillar === "All" 
+                                            ? "border-gray-200 bg-white text-gray-700 focus:ring-blue-500/20 focus:border-blue-500 hover:border-gray-300"
+                                            : "border-blue-200 bg-blue-50 text-blue-700 focus:ring-blue-500/20 focus:border-blue-500"
+                                    }`}
+                                >
+                                    <Target size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${filterPillar === "All" ? "text-gray-400" : "text-blue-500"}`} />
+                                    {filterPillar === "All" ? "Category" : filterPillar}
+                                    <svg className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </button>
+                                {showCategoryDropdown && (
+                                    <div className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+                                        {(categories as string[]).map(c => (
+                                            <button
+                                                key={c}
+                                                onClick={() => {
+                                                    setFilterPillar(c);
+                                                    setShowCategoryDropdown(false);
+                                                }}
+                                                className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors flex items-center gap-3 ${
+                                                    filterPillar === c 
+                                                        ? "bg-blue-50 text-blue-700"
+                                                        : "text-gray-700 hover:bg-gray-50"
+                                                }`}
+                                            >
+                                                <Target size={14} className={filterPillar === c ? "text-blue-500" : "text-gray-400"} />
+                                                {c === "All" ? "All Categories" : c}
+                                                {filterPillar === c && (
+                                                    <CheckCircle2 size={14} className="ml-auto" />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <h3 className="font-semibold text-gray-900 text-lg">Filters</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-semibold text-gray-700 block mb-2">Priority</label>
-                            <select
-                                value={filterPriority}
-                                onChange={(e) => setFilterPriority(e.target.value)}
-                                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 hover:bg-white"
-                            >
-                                {(priorities as string[]).map(p => (
-                                    <option key={p} value={p}>{p}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="text-sm font-semibold text-gray-700 block mb-2">Category</label>
-                            <select
-                                value={filterPillar}
-                                onChange={(e) => setFilterPillar(e.target.value)}
-                                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 hover:bg-white"
-                            >
-                                {(categories as string[]).map(c => (
-                                    <option key={c} value={c}>{c}</option>
-                                ))}
-                            </select>
+
+                        {/* Active Filters Indicator - Always reserve space */}
+                        <div className="mt-3 pt-3 border-t border-gray-100" style={{ minHeight: '40px' }}>
+                            {(searchQuery || filterPriority !== "All" || filterPillar !== "All") && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-gray-500">Active filters:</span>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {searchQuery && (
+                                            <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-md">
+                                                <Search size={12} />
+                                                "{searchQuery}"
+                                                <button onClick={() => setSearchQuery("")} className="hover:text-blue-900">
+                                                    <X size={12} />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filterPriority !== "All" && (
+                                            <span className="inline-flex items-center gap-1 text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded-md">
+                                                <AlertCircle size={12} />
+                                                {filterPriority}
+                                                <button onClick={() => setFilterPriority("All")} className="hover:text-orange-900">
+                                                    <X size={12} />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filterPillar !== "All" && (
+                                            <span className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-md">
+                                                <Target size={12} />
+                                                {filterPillar}
+                                                <button onClick={() => setFilterPillar("All")} className="hover:text-purple-900">
+                                                    <X size={12} />
+                                                </button>
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                setSearchQuery("");
+                                                setFilterPriority("All");
+                                                setFilterPillar("All");
+                                            }}
+                                            className="text-xs text-gray-500 hover:text-gray-700 font-medium underline"
+                                        >
+                                            Clear all
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </motion.div>
 
                 <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">Active Tasks</h2>
-                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
-                        </span>
-                    </div>
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-16">
                             <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mb-4" />

@@ -134,10 +134,8 @@ export default function DashboardPage() {
                     color: "orange",
                 },
                 {
-                    title: "Completed",
-                    value: `${completionRate}%`,
-                    change: `${completedTasks} of ${tasks.length} tasks`,
-                    changeType: "neutral",
+                    title: "Completed Tasks",
+                    value: completedTasks,
                     icon: CheckCircle2,
                     color: "green",
                 },
