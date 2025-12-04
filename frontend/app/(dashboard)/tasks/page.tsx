@@ -257,8 +257,7 @@ export default function TasksPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-white rounded-2xl border border-gray-200 shadow-sm relative z-50"
-                    style={{ overflow: 'visible' }}
+                    className="bg-white rounded-2xl border border-gray-200 shadow-sm"
                 >
                     <div className="p-4">
                         <div className="flex flex-col lg:flex-row gap-3">
@@ -283,9 +282,9 @@ export default function TasksPage() {
                             </div>
 
                             {/* Priority Filter */}
-                            <div className="relative lg:w-52 z-30">
+                            <div className="relative lg:w-52">
                                 {showPriorityDropdown && (
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowPriorityDropdown(false)} />
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowPriorityDropdown(false)} />
                                 )}
                                 <button
                                     onClick={() => {
@@ -311,7 +310,7 @@ export default function TasksPage() {
                                     </svg>
                                 </button>
                                 {showPriorityDropdown && (
-                                    <div className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                    <div className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden">
                                         {(priorities as string[]).map(p => (
                                             <button
                                                 key={p}
@@ -345,9 +344,9 @@ export default function TasksPage() {
                             </div>
 
                             {/* Category Filter */}
-                            <div className="relative lg:w-52 z-20">
+                            <div className="relative lg:w-52">
                                 {showCategoryDropdown && (
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowCategoryDropdown(false)} />
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowCategoryDropdown(false)} />
                                 )}
                                 <button
                                     onClick={() => {
@@ -367,7 +366,7 @@ export default function TasksPage() {
                                     </svg>
                                 </button>
                                 {showCategoryDropdown && (
-                                    <div className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+                                    <div className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden max-h-80 overflow-y-auto">
                                         {(categories as string[]).map(c => (
                                             <button
                                                 key={c}
@@ -393,8 +392,8 @@ export default function TasksPage() {
                             </div>
                         </div>
 
-                        {/* Active Filters Indicator - Always reserve space */}
-                        <div className="mt-3 pt-3 border-t border-gray-100" style={{ minHeight: '40px' }}>
+                        {/* Active Filters Indicator - Fixed height to prevent layout shift */}
+                        <div className="mt-3 pt-3 border-t border-gray-100 h-10">
                             {(searchQuery || filterPriority !== "All" || filterPillar !== "All") && (
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs font-medium text-gray-500">Active filters:</span>
@@ -438,7 +437,7 @@ export default function TasksPage() {
                                         </button>
                                     </div>
                                 </div>
-                            )}
+                                            )}
                         </div>
                     </div>
                 </motion.div>

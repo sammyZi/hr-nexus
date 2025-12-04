@@ -150,7 +150,11 @@ export default function SettingsPage() {
             loadData();
         } catch (error: any) {
             console.error('Failed to send invitation:', error);
-            showToast(error.response?.data?.detail || 'Failed to send invitation', 'error');
+            const errorMessage = error.userMessage || 
+                                error.response?.data?.detail || 
+                                error.message || 
+                                'Failed to send invitation';
+            showToast(errorMessage, 'error');
         } finally {
             setSubmitting(false);
         }

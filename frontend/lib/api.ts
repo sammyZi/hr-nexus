@@ -55,6 +55,9 @@ api.interceptors.response.use(
                 baseURL: error.config?.baseURL,
             });
             console.error('[API Interceptor] Is backend running at', API_BASE_URL, '?');
+            
+            // Add user-friendly error message
+            error.userMessage = `Cannot connect to server at ${API_BASE_URL}. Please ensure the backend is running.`;
             return Promise.reject(error);
         }
 
@@ -65,6 +68,7 @@ api.interceptors.response.use(
             method: error.config?.method,
             hasAuthHeader: !!error.config?.headers?.Authorization,
             data: error.response?.data,
+            fullError: error,
         });
         
         if (error.response?.status === 401) {

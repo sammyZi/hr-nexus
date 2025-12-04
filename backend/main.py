@@ -164,7 +164,16 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "http://sammyi57.ddns.net:3000",
+        "http://sammyi57.ddns.net",
+        "https://sammyi57.ddns.net:3000",
+        "https://sammyi57.ddns.net",
+        "https://hr-nexus-eosin.vercel.app",
+        "*"  # Allow all origins for development
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Accept"],
@@ -1522,3 +1531,50 @@ async def chat(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    
+    # For external access, use HTTP (SSL requires proper certificates from a CA)
+    # To enable HTTPS, set USE_SSL=true in environment and provide valid certificates
+    use_ssl = os.getenv("USE_SSL", "false").lower() == "true"
+    
+    if use_ssl:
+        ssl_keyfile = os.path.join(os.path.dirname(__file__), "ssl", "key.pem")
+        ssl_certfile = os.path.join(os.path.dirname(__file__), "ssl", "cert.pem")
+        
+        if os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile):
+            print(f"[SSL] Starting server with HTTPS on https://0.0.0.0:8000", flush=True)
+            print(f"[SSL] Certificate: {ssl_certfile}", flush=True)
+            print(f"[SSL] Key: {ssl_keyfile}", flush=True)
+            uvicorn.run(
+                "main:app",
+                host="0.0.0.0",
+                port=8000,
+                reload=True,
+                log_level="info",
+                ssl_keyfile=ssl_keyfile,
+                ssl_certfile=ssl_certfile
+            )
+        else:
+            print(f"[SSL] SSL certificates not found at {ssl_keyfile}", flush=True)
+            print(f"[SSL] Falling back to HTTP", flush=True)
+            uvicorn.run(
+                "main:app",
+                host="0.0.0.0",
+                port=8000,
+                reload=True,
+                log_level="info"
+            )
+    else:
+        print(f"[SERVER] Starting with HTTP on http://0.0.0.0:8000", flush=True)
+        print(f"[SERVER] Accessible at http://sammyi57.ddns.net:8000", flush=True)
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=True,
+            log_level="info"
+        )
