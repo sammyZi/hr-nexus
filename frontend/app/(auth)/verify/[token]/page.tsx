@@ -12,7 +12,8 @@ export default function VerifyPage() {
 
     useEffect(() => {
         if (params.token) {
-            axios.get(`http://localhost:8000/auth/verify/${params.token}`)
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            axios.get(`${API_BASE}/auth/verify/${params.token}`)
                 .then(() => {
                     setStatus("success");
                     setTimeout(() => router.push("/login"), 3000);

@@ -39,3 +39,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# SSL Certificates
+ssl/
+*.pem
+*.key
+*.crt

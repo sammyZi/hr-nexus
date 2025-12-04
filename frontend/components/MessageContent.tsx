@@ -134,7 +134,31 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, role, i
                                     <div className="flex items-center justify-between mb-1">
                                         <span className="font-semibold text-gray-800">[{source.num}] {source.filename}</span>
                                         <button
-                                            onClick={() => window.open(`http://localhost:8000/documents/view-by-name/${encodeURIComponent(source.filename)}`, '_blank')}
+                                            onClick={async () => {
+                                                try {
+                                                    const token = localStorage.getItem('access_token');
+                                                    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                                    const response = await fetch(`${API_BASE}/documents/view-by-name/${encodeURIComponent(source.filename)}`, {
+                                                        headers: {
+                                                            'Authorization': `Bearer ${token}`
+                                                        }
+                                                    });
+                                                    
+                                                    if (!response.ok) {
+                                                        throw new Error('Failed to fetch document');
+                                                    }
+                                                    
+                                                    const blob = await response.blob();
+                                                    const url = window.URL.createObjectURL(blob);
+                                                    window.open(url, '_blank');
+                                                    
+                                                    // Clean up the URL after a delay
+                                                    setTimeout(() => window.URL.revokeObjectURL(url), 100);
+                                                } catch (error) {
+                                                    console.error('Failed to view document', error);
+                                                    alert('Failed to view document');
+                                                }
+                                            }}
                                             className="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium"
                                         >
                                             View

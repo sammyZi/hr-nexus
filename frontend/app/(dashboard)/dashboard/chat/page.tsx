@@ -46,7 +46,8 @@ export default function ChatPage() {
             // So I will enforce file upload for the first step or allow it.
 
             // Let's try to send the request.
-            const res = await axios.post("http://localhost:8000/chat", formData, {
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const res = await axios.post(`${API_BASE}/chat`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
 
