@@ -51,14 +51,14 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
 
     return (
         <AnimatedCard delay={index * 0.1}>
-            <div className="group relative bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-2xl hover:border-gray-300 transition-all duration-300 overflow-hidden">
+            <div className="group relative bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 hover:shadow-2xl hover:border-gray-300 transition-all duration-300 overflow-hidden">
                 {/* Gradient background on hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
                 
                 <div className="relative flex items-start justify-between">
                     <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-500 mb-2">{stat.title}</p>
-                        <p className="text-4xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-500 mb-1 sm:mb-2">{stat.title}</p>
+                        <p className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1">{stat.value}</p>
                         {stat.change && (
                             <p className={`text-sm font-medium flex items-center gap-1 ${
                                 stat.changeType === 'positive' ? 'text-green-600' :
@@ -70,8 +70,8 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
                             </p>
                         )}
                     </div>
-                    <div className={`p-4 rounded-2xl bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon size={24} className="text-white" />
+                    <div className={`p-3 sm:p-4 rounded-2xl bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon size={20} className="text-white sm:w-6 sm:h-6" />
                     </div>
                 </div>
             </div>
@@ -153,16 +153,17 @@ export default function DashboardPage() {
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
             <header className="bg-white border-b border-gray-100">
-                <div className="max-w-7xl mx-auto px-6 py-8">
-                    <div className="flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">{greeting}! 👋</h1>
-                            <p className="text-gray-500 mt-1">Here's what's happening with your HR operations</p>
+                            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{greeting}! 👋</h1>
+                            <p className="text-sm sm:text-base text-gray-500 mt-1">Here's what's happening with your HR operations</p>
                         </div>
-                        <Link href="/ai-assistant">
-                            <Button className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-600/20">
+                        <Link href="/ai-assistant" className="w-full sm:w-auto">
+                            <Button className="w-full sm:w-auto gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-600/20">
                                 <Sparkles size={18} />
-                                Ask AI Assistant
+                                <span className="hidden sm:inline">Ask AI Assistant</span>
+                                <span className="sm:hidden">AI Assistant</span>
                             </Button>
                         </Link>
                     </div>
@@ -170,10 +171,10 @@ export default function DashboardPage() {
             </header>
 
             {/* Content */}
-            <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8">
                 {/* Stats Grid */}
                 <section>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Overview</h2>
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Overview</h2>
                     {loading ? (
                         <div className="flex justify-center py-12">
                             <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -189,8 +190,8 @@ export default function DashboardPage() {
 
                 {/* Quick Actions */}
                 <section>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Quick Actions</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                         <AnimatedCard delay={0.4}>
                             <Link href="/ai-assistant">
                                 <div className="group relative bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 hover:shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 overflow-hidden">
@@ -242,7 +243,7 @@ export default function DashboardPage() {
 
                 {/* Activity Feed */}
                 <section>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Recent Activity</h2>
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Recent Activity</h2>
                     <AnimatedCard delay={0.7}>
                         <div className="bg-white rounded-2xl border border-gray-200 p-6">
                             <div className="space-y-4">

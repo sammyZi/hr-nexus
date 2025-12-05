@@ -348,35 +348,35 @@ export default function AIAssistantPage() {
     return (
         <div className="h-screen flex flex-col bg-gray-50">
             {/* Header */}
-            <header className="px-6 py-4 border-b bg-white shadow-sm">
+            <header className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-white shadow-sm">
                 <div className="flex items-center justify-between max-w-5xl mx-auto">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-blue-600 text-white">
-                            <Bot size={24} />
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <div className="p-1.5 sm:p-2 rounded-xl bg-blue-600 text-white flex-shrink-0">
+                            <Bot size={20} className="sm:w-6 sm:h-6" />
                         </div>
-                        <div>
-                            <h1 className="text-xl font-semibold text-gray-900">AI Assistant</h1>
-                            <p className="text-sm text-gray-500">Ask questions about your documents</p>
+                        <div className="min-w-0">
+                            <h1 className="text-base sm:text-xl font-semibold text-gray-900 truncate">AI Assistant</h1>
+                            <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">Ask questions about your documents</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                         <Button
                             onClick={handleClearChat}
                             variant="secondary"
                             size="sm"
-                            className="gap-2"
+                            className="gap-1 sm:gap-2 px-2 sm:px-3"
                         >
-                            <Trash2 size={16} />
-                            Clear Chat
+                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Clear Chat</span>
                         </Button>
                         <Button
                             onClick={() => setShowUpload(!showUpload)}
                             variant="secondary"
                             size="sm"
-                            className="gap-2"
+                            className="gap-1 sm:gap-2 px-2 sm:px-3"
                         >
-                            <Upload size={16} />
-                            Upload
+                            <Upload size={14} className="sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Upload</span>
                         </Button>
                     </div>
                 </div>
@@ -417,16 +417,16 @@ export default function AIAssistantPage() {
                     {messages.map((message) => (
                         <div
                             key={message.id}
-                            className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                            className={`flex gap-2 sm:gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             {message.role === 'assistant' && (
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <Bot size={16} className="text-blue-600" />
+                                <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <Bot size={14} className="text-blue-600 sm:w-4 sm:h-4" />
                                 </div>
                             )}
 
                             <div
-                                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                                className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
                                     message.role === 'user'
                                         ? 'bg-blue-600 text-white'
                                         : 'bg-white border shadow-sm text-gray-800'
@@ -434,7 +434,7 @@ export default function AIAssistantPage() {
                             >
                                 <MessageContent content={message.content} role={message.role} isInitial={message.id === '1'} />
                                 
-                                <p className={`text-xs mt-3 ${
+                                <p className={`text-xs mt-2 sm:mt-3 ${
                                     message.role === 'user' ? 'text-blue-200' : 'text-gray-400'
                                 }`}>
                                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -442,8 +442,8 @@ export default function AIAssistantPage() {
                             </div>
 
                             {message.role === 'user' && (
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                    <User size={16} className="text-gray-600" />
+                                <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <User size={14} className="text-gray-600 sm:w-4 sm:h-4" />
                                 </div>
                             )}
                         </div>
@@ -486,37 +486,37 @@ export default function AIAssistantPage() {
             )}
 
             {/* Input */}
-            <div className="border-t bg-white px-4 py-4">
+            <div className="border-t bg-white px-3 sm:px-4 py-3 sm:py-4">
                 <div className="max-w-3xl mx-auto">
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 sm:gap-3">
                         <input
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            placeholder="Ask a question about your documents..."
-                            className="flex-1 px-4 py-3 rounded-xl border bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                            placeholder="Ask a question..."
+                            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                             disabled={isLoading || isStreaming}
                         />
                         {(isLoading || isStreaming) ? (
                             <button
                                 onClick={handleStopStreaming}
-                                className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
+                                className="px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1 sm:gap-2 font-medium text-sm sm:text-base"
                             >
-                                <StopCircle size={20} />
-                                <span>Stop</span>
+                                <StopCircle size={18} className="sm:w-5 sm:h-5" />
+                                <span className="hidden sm:inline">Stop</span>
                             </button>
                         ) : (
                             <Button
                                 onClick={handleSend}
                                 disabled={!input.trim()}
-                                className="px-4"
+                                className="px-3 sm:px-4"
                             >
-                                <Send size={20} />
+                                <Send size={18} className="sm:w-5 sm:h-5" />
                             </Button>
                         )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-2 text-center">
+                    <p className="text-xs text-gray-400 mt-2 text-center hidden sm:block">
                         Session-based chat • Context cleared on page close or Clear Chat
                     </p>
                 </div>

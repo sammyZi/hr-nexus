@@ -103,16 +103,16 @@ export default function AcceptInvitationPage() {
 
     if (error || !invitation) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
-                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8 text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Mail className="text-red-600" size={32} />
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 sm:p-8">
+                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-6 sm:p-8 text-center">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                        <Mail className="text-red-600" size={28} />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Invitation</h2>
-                    <p className="text-gray-600 mb-6">{error}</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Invalid Invitation</h2>
+                    <p className="text-sm sm:text-base text-gray-600 mb-5 sm:mb-6">{error}</p>
                     <Link
                         href="/signin"
-                        className="inline-block px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all"
+                        className="inline-block px-5 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all"
                     >
                         Go to Sign In
                     </Link>
@@ -164,44 +164,44 @@ export default function AcceptInvitationPage() {
             </div>
 
             {/* Right Panel - Form */}
-            <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-gray-50">
                 <div className="w-full max-w-md">
                     {/* Mobile Logo */}
-                    <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <span className="text-white font-bold text-xl">H</span>
+                    <div className="lg:hidden flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <span className="text-white font-bold text-lg sm:text-xl">H</span>
                         </div>
-                        <span className="text-gray-900 text-2xl font-bold">HR Nexus</span>
+                        <span className="text-gray-900 text-xl sm:text-2xl font-bold">HR Nexus</span>
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8">
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Mail className="text-indigo-600" size={32} />
+                    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-5 sm:p-8">
+                        <div className="text-center mb-6 sm:mb-8">
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                                <Mail className="text-indigo-600" size={28} />
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-900">Accept Invitation</h2>
-                            <p className="text-gray-500 mt-2">Create your account to get started</p>
+                            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Accept Invitation</h2>
+                            <p className="text-sm sm:text-base text-gray-500 mt-2">Create your account to get started</p>
                         </div>
 
                         {/* Invitation Details */}
-                        <div className="bg-indigo-50 rounded-xl p-4 mb-6 space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                                <Mail size={16} className="text-indigo-600" />
-                                <span className="text-gray-700">
+                        <div className="bg-indigo-50 rounded-xl p-3 sm:p-4 mb-5 sm:mb-6 space-y-2">
+                            <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Mail size={14} className="text-indigo-600 sm:w-4 sm:h-4 flex-shrink-0" />
+                                <span className="text-gray-700 truncate">
                                     <span className="font-medium">Email:</span> {invitation.email}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <Building2 size={16} className="text-indigo-600" />
+                            <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Building2 size={14} className="text-indigo-600 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span className="text-gray-700">
                                     <span className="font-medium">Role:</span> {invitation.role}
                                 </span>
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                                     Create Password
                                 </label>
                                 <div className="relative">
@@ -210,21 +210,21 @@ export default function AcceptInvitationPage() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all pr-12"
+                                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all pr-11 sm:pr-12"
                                         required
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                     >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        {showPassword ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
                                     </button>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                                     Confirm Password
                                 </label>
                                 <input
@@ -232,20 +232,20 @@ export default function AcceptInvitationPage() {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                                     required
                                 />
                             </div>
 
                             {/* Password Requirements */}
                             {password && (
-                                <div className="space-y-2">
+                                <div className="space-y-1.5 sm:space-y-2">
                                     {passwordRequirements.map((req, index) => (
-                                        <div key={index} className="flex items-center gap-2 text-sm">
-                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                        <div key={index} className="flex items-center gap-2 text-xs sm:text-sm">
+                                            <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
                                                 req.met ? 'bg-green-500' : 'bg-gray-200'
                                             }`}>
-                                                {req.met && <Check size={10} className="text-white" />}
+                                                {req.met && <Check size={8} className="text-white sm:w-2.5 sm:h-2.5" />}
                                             </div>
                                             <span className={req.met ? 'text-green-600' : 'text-gray-500'}>
                                                 {req.label}
@@ -258,23 +258,25 @@ export default function AcceptInvitationPage() {
                             <button
                                 type="submit"
                                 disabled={submitting || !passwordRequirements.every(r => r.met)}
-                                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-2.5 sm:py-3 px-4 text-sm sm:text-base bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {submitting ? (
                                     <>
-                                        <Loader2 className="animate-spin" size={20} />
-                                        Creating Account...
+                                        <Loader2 className="animate-spin" size={18} />
+                                        <span className="hidden sm:inline">Creating Account...</span>
+                                        <span className="sm:hidden">Creating...</span>
                                     </>
                                 ) : (
                                     <>
-                                        <Check size={20} />
-                                        Accept & Create Account
+                                        <Check size={18} />
+                                        <span className="hidden sm:inline">Accept & Create Account</span>
+                                        <span className="sm:hidden">Accept Invitation</span>
                                     </>
                                 )}
                             </button>
                         </form>
 
-                        <p className="mt-6 text-center text-sm text-gray-500">
+                        <p className="mt-5 sm:mt-6 text-center text-xs sm:text-sm text-gray-500">
                             Already have an account?{" "}
                             <Link href="/signin" className="text-indigo-600 hover:text-indigo-700 font-medium">
                                 Sign in
@@ -282,7 +284,7 @@ export default function AcceptInvitationPage() {
                         </p>
                     </div>
 
-                    <p className="mt-6 text-center text-xs text-gray-400">
+                    <p className="mt-4 sm:mt-6 text-center text-xs text-gray-400 px-2">
                         By creating an account, you agree to our Terms of Service and Privacy Policy
                     </p>
                 </div>
