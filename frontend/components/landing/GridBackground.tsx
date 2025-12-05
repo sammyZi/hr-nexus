@@ -1,14 +1,29 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export default function GridBackground() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        // Detect mobile devices
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     return (
         <div className="absolute inset-0 z-0" aria-hidden="true">
             {/* White background base */}
             <div className="absolute inset-0 bg-white" />
             
-            {/* Base Grid Pattern - 60px - DARKER */}
+            {/* Base Grid Pattern - 60px - DARKER - Static on mobile */}
             <div 
                 className="absolute inset-0"
                 style={{
@@ -16,11 +31,12 @@ export default function GridBackground() {
                         linear-gradient(to right, rgba(150, 150, 150, 0.35) 1px, transparent 1px),
                         linear-gradient(to bottom, rgba(150, 150, 150, 0.35) 1px, transparent 1px)
                     `,
-                    backgroundSize: '60px 60px'
+                    backgroundSize: '60px 60px',
+                    willChange: 'auto'
                 }}
             />
             
-            {/* Accent Grid Pattern - 20px - DARKER */}
+            {/* Accent Grid Pattern - 20px - DARKER - Static on mobile */}
             <div 
                 className="absolute inset-0"
                 style={{
@@ -28,130 +44,156 @@ export default function GridBackground() {
                         linear-gradient(to right, rgba(170, 170, 170, 0.18) 1px, transparent 1px),
                         linear-gradient(to bottom, rgba(170, 170, 170, 0.18) 1px, transparent 1px)
                     `,
-                    backgroundSize: '20px 20px'
+                    backgroundSize: '20px 20px',
+                    willChange: 'auto'
                 }}
             />
             
-            {/* Animated Orbs with Orange/Teal Animation */}
-            {/* Top Center Orb - Orange to Teal */}
-            <motion.div
-                className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
-                animate={{
-                    scale: [1, 1.15, 1],
-                    opacity: [0.6, 0.85, 0.6],
-                }}
-                transition={{
-                    duration: 15,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                }}
-            >
-                <motion.div
-                    className="absolute inset-0 rounded-full blur-3xl"
-                    animate={{
-                        background: [
-                            'radial-gradient(circle, rgba(249, 115, 22, 0.5) 0%, rgba(251, 146, 60, 0.25) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(20, 184, 166, 0.5) 0%, rgba(45, 212, 191, 0.25) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(249, 115, 22, 0.5) 0%, rgba(251, 146, 60, 0.25) 50%, transparent 100%)',
-                        ]
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                    }}
-                />
-            </motion.div>
-            
-            {/* Top Right Orb - Teal to Orange */}
-            <motion.div
-                className="absolute top-[20%] right-[20%] w-[550px] h-[550px] rounded-full blur-3xl pointer-events-none"
-                animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.7, 0.9, 0.7],
-                }}
-                transition={{
-                    duration: 18,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                }}
-            >
-                <motion.div
-                    className="absolute inset-0 rounded-full blur-3xl"
-                    animate={{
-                        background: [
-                            'radial-gradient(circle, rgba(20, 184, 166, 0.55) 0%, rgba(45, 212, 191, 0.3) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(249, 115, 22, 0.55) 0%, rgba(251, 146, 60, 0.3) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(20, 184, 166, 0.55) 0%, rgba(45, 212, 191, 0.3) 50%, transparent 100%)',
-                        ]
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                    }}
-                />
-            </motion.div>
-            
-            {/* Bottom Left Orb - Orange to Teal */}
-            <motion.div
-                className="absolute bottom-[15%] left-[15%] w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none"
-                animate={{
-                    scale: [1.1, 1, 1.1],
-                    opacity: [0.7, 0.9, 0.7],
-                }}
-                transition={{
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                }}
-            >
-                <motion.div
-                    className="absolute inset-0 rounded-full blur-3xl"
-                    animate={{
-                        background: [
-                            'radial-gradient(circle, rgba(249, 115, 22, 0.6) 0%, rgba(251, 146, 60, 0.3) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(20, 184, 166, 0.6) 0%, rgba(45, 212, 191, 0.3) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(249, 115, 22, 0.6) 0%, rgba(251, 146, 60, 0.3) 50%, transparent 100%)',
-                        ]
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                    }}
-                />
-            </motion.div>
-            
-            {/* Center Orb - Teal to Orange */}
-            <motion.div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-3xl pointer-events-none"
-                animate={{
-                    scale: [1, 1.1, 1],
-                    opacity: [0.6, 0.8, 0.6],
-                }}
-                transition={{
-                    duration: 25,
-                    repeat: Infinity,
-                    ease: 'linear',
-                }}
-            >
-                <motion.div
-                    className="absolute inset-0 rounded-full blur-3xl"
-                    animate={{
-                        background: [
-                            'radial-gradient(circle, rgba(20, 184, 166, 0.45) 0%, rgba(45, 212, 191, 0.2) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(249, 115, 22, 0.45) 0%, rgba(251, 146, 60, 0.2) 50%, transparent 100%)',
-                            'radial-gradient(circle, rgba(20, 184, 166, 0.45) 0%, rgba(45, 212, 191, 0.2) 50%, transparent 100%)',
-                        ]
-                    }}
-                    transition={{
-                        duration: 14,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                    }}
-                />
-            </motion.div>
+            {/* Animated Orbs - Simplified for mobile, full animation for desktop */}
+            {isMobile ? (
+                // Static orbs for mobile - no animation
+                <>
+                    <div
+                        className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full blur-3xl pointer-events-none opacity-60"
+                        style={{
+                            background: 'radial-gradient(circle, rgba(249, 115, 22, 0.4) 0%, rgba(251, 146, 60, 0.2) 50%, transparent 100%)'
+                        }}
+                    />
+                    <div
+                        className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full blur-3xl pointer-events-none opacity-50"
+                        style={{
+                            background: 'radial-gradient(circle, rgba(20, 184, 166, 0.4) 0%, rgba(45, 212, 191, 0.2) 50%, transparent 100%)'
+                        }}
+                    />
+                </>
+            ) : (
+                // Full animations for desktop
+                <>
+                    {/* Top Center Orb - Orange to Teal */}
+                    <motion.div
+                        className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
+                        animate={{
+                            scale: [1, 1.15, 1],
+                            opacity: [0.6, 0.85, 0.6],
+                        }}
+                        transition={{
+                            duration: 15,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        <motion.div
+                            className="absolute inset-0 rounded-full blur-3xl"
+                            animate={{
+                                background: [
+                                    'radial-gradient(circle, rgba(249, 115, 22, 0.5) 0%, rgba(251, 146, 60, 0.25) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(20, 184, 166, 0.5) 0%, rgba(45, 212, 191, 0.25) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(249, 115, 22, 0.5) 0%, rgba(251, 146, 60, 0.25) 50%, transparent 100%)',
+                                ]
+                            }}
+                            transition={{
+                                duration: 8,
+                                repeat: Infinity,
+                                ease: 'easeInOut',
+                            }}
+                        />
+                    </motion.div>
+                    
+                    {/* Top Right Orb - Teal to Orange */}
+                    <motion.div
+                        className="absolute top-[20%] right-[20%] w-[550px] h-[550px] rounded-full blur-3xl pointer-events-none"
+                        animate={{
+                            scale: [1, 1.2, 1],
+                            opacity: [0.7, 0.9, 0.7],
+                        }}
+                        transition={{
+                            duration: 18,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        <motion.div
+                            className="absolute inset-0 rounded-full blur-3xl"
+                            animate={{
+                                background: [
+                                    'radial-gradient(circle, rgba(20, 184, 166, 0.55) 0%, rgba(45, 212, 191, 0.3) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(249, 115, 22, 0.55) 0%, rgba(251, 146, 60, 0.3) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(20, 184, 166, 0.55) 0%, rgba(45, 212, 191, 0.3) 50%, transparent 100%)',
+                                ]
+                            }}
+                            transition={{
+                                duration: 10,
+                                repeat: Infinity,
+                                ease: 'easeInOut',
+                            }}
+                        />
+                    </motion.div>
+                    
+                    {/* Bottom Left Orb - Orange to Teal */}
+                    <motion.div
+                        className="absolute bottom-[15%] left-[15%] w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none"
+                        animate={{
+                            scale: [1.1, 1, 1.1],
+                            opacity: [0.7, 0.9, 0.7],
+                        }}
+                        transition={{
+                            duration: 20,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        <motion.div
+                            className="absolute inset-0 rounded-full blur-3xl"
+                            animate={{
+                                background: [
+                                    'radial-gradient(circle, rgba(249, 115, 22, 0.6) 0%, rgba(251, 146, 60, 0.3) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(20, 184, 166, 0.6) 0%, rgba(45, 212, 191, 0.3) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(249, 115, 22, 0.6) 0%, rgba(251, 146, 60, 0.3) 50%, transparent 100%)',
+                                ]
+                            }}
+                            transition={{
+                                duration: 12,
+                                repeat: Infinity,
+                                ease: 'easeInOut',
+                            }}
+                        />
+                    </motion.div>
+                    
+                    {/* Center Orb - Teal to Orange */}
+                    <motion.div
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-3xl pointer-events-none"
+                        animate={{
+                            scale: [1, 1.1, 1],
+                            opacity: [0.6, 0.8, 0.6],
+                        }}
+                        transition={{
+                            duration: 25,
+                            repeat: Infinity,
+                            ease: 'linear',
+                        }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        <motion.div
+                            className="absolute inset-0 rounded-full blur-3xl"
+                            animate={{
+                                background: [
+                                    'radial-gradient(circle, rgba(20, 184, 166, 0.45) 0%, rgba(45, 212, 191, 0.2) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(249, 115, 22, 0.45) 0%, rgba(251, 146, 60, 0.2) 50%, transparent 100%)',
+                                    'radial-gradient(circle, rgba(20, 184, 166, 0.45) 0%, rgba(45, 212, 191, 0.2) 50%, transparent 100%)',
+                                ]
+                            }}
+                            transition={{
+                                duration: 14,
+                                repeat: Infinity,
+                                ease: 'easeInOut',
+                            }}
+                        />
+                    </motion.div>
+                </>
+            )}
             
             {/* Grid fade out at edges */}
             <div 

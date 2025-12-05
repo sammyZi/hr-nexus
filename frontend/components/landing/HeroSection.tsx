@@ -9,30 +9,30 @@ import GridBackground from "./GridBackground";
 const HeroSection = () => {
 
     return (
-        <section className="relative h-screen pt-16 pb-8 px-6 overflow-hidden flex items-center">
+        <section className="relative min-h-screen pt-20 sm:pt-24 pb-8 sm:pb-12 px-4 sm:px-6 overflow-hidden flex items-center">
             {/* Grid Background Component */}
             <GridBackground />
             
             {/* Content */}
             <div className="max-w-7xl mx-auto relative z-10 w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8 items-center">
                     {/* Left - Text */}
                     <motion.div 
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.6 }}
-                        className="space-y-5 lg:col-span-2"
+                        className="space-y-4 sm:space-y-5 lg:col-span-2"
                     >
                         {/* Badge */}
                         <motion.div 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5 }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full"
+                            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-50 border border-blue-200 rounded-full"
                         >
-                            <Sparkles size={16} className="text-blue-600" />
+                            <Sparkles size={14} className="text-blue-600 sm:w-4 sm:h-4" />
                             <motion.span 
-                                className="text-sm font-semibold bg-clip-text text-transparent"
+                                className="text-xs sm:text-sm font-semibold bg-clip-text text-transparent"
                                 style={{
                                     backgroundImage: "linear-gradient(90deg, #2563eb, #7c3aed, #db2777, #7c3aed, #2563eb)",
                                     backgroundSize: "200% 100%",
