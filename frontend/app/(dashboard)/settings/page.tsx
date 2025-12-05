@@ -233,52 +233,52 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-                <p className="text-gray-600">Manage your organization settings, users, and invitations</p>
+            <div className="mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+                <p className="text-sm sm:text-base text-gray-600">Manage your organization settings, users, and invitations</p>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-4 mb-6 border-b border-gray-200">
+            <div className="flex gap-2 sm:gap-4 mb-6 border-b border-gray-200 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('organization')}
-                    className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                    className={`px-3 sm:px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
                         activeTab === 'organization'
                             ? 'border-blue-600 text-blue-600'
                             : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                 >
-                    <div className="flex items-center gap-2">
-                        <Building2 size={18} />
-                        Organization
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <Building2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                        <span className="text-sm sm:text-base">Organization</span>
                     </div>
                 </button>
                 <button
                     onClick={() => setActiveTab('users')}
-                    className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                    className={`px-3 sm:px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
                         activeTab === 'users'
                             ? 'border-blue-600 text-blue-600'
                             : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                 >
-                    <div className="flex items-center gap-2">
-                        <Users size={18} />
-                        Users
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <Users size={16} className="sm:w-[18px] sm:h-[18px]" />
+                        <span className="text-sm sm:text-base">Users</span>
                     </div>
                 </button>
                 <button
                     onClick={() => setActiveTab('invitations')}
-                    className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                    className={`px-3 sm:px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
                         activeTab === 'invitations'
                             ? 'border-blue-600 text-blue-600'
                             : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                 >
-                    <div className="flex items-center gap-2">
-                        <Mail size={18} />
-                        Invitations
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <Mail size={16} className="sm:w-[18px] sm:h-[18px]" />
+                        <span className="text-sm sm:text-base">Invitations</span>
                     </div>
                 </button>
             </div>
@@ -287,9 +287,9 @@ export default function SettingsPage() {
             {activeTab === 'organization' && (
                 <div className="space-y-6">
                     {/* Organization Details */}
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-semibold text-gray-900">Organization Details</h2>
+                    <Card className="p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Organization Details</h2>
                             {!isEditingOrg && (
                                 <Button
                                     onClick={handleEditOrganization}
@@ -382,43 +382,43 @@ export default function SettingsPage() {
 
                     {/* Organization Statistics */}
                     {stats && (
-                        <Card className="p-6">
-                            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Statistics</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="flex items-start gap-4">
-                                    <div className="p-3 bg-blue-100 rounded-lg">
-                                        <Users className="text-blue-600" size={24} />
+                        <Card className="p-4 sm:p-6">
+                            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6">Statistics</h2>
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                                <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                                    <div className="p-2 sm:p-3 bg-blue-100 rounded-lg">
+                                        <Users className="text-blue-600" size={20} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-gray-500">Active Users</p>
-                                        <p className="text-2xl font-bold text-gray-900">{stats.active_users}</p>
+                                        <p className="text-xs sm:text-sm font-medium text-gray-500">Active Users</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.active_users}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="p-3 bg-green-100 rounded-lg">
-                                        <FileText className="text-green-600" size={24} />
+                                <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                                    <div className="p-2 sm:p-3 bg-green-100 rounded-lg">
+                                        <FileText className="text-green-600" size={20} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-gray-500">Documents</p>
-                                        <p className="text-2xl font-bold text-gray-900">{stats.total_documents}</p>
+                                        <p className="text-xs sm:text-sm font-medium text-gray-500">Documents</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total_documents}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="p-3 bg-purple-100 rounded-lg">
-                                        <CheckSquare className="text-purple-600" size={24} />
+                                <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                                    <div className="p-2 sm:p-3 bg-purple-100 rounded-lg">
+                                        <CheckSquare className="text-purple-600" size={20} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-gray-500">Total Tasks</p>
-                                        <p className="text-2xl font-bold text-gray-900">{stats.total_tasks}</p>
+                                        <p className="text-xs sm:text-sm font-medium text-gray-500">Total Tasks</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total_tasks}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="p-3 bg-yellow-100 rounded-lg">
-                                        <BarChart3 className="text-yellow-600" size={24} />
+                                <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 col-span-2 lg:col-span-1">
+                                    <div className="p-2 sm:p-3 bg-yellow-100 rounded-lg">
+                                        <BarChart3 className="text-yellow-600" size={20} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-gray-500">Completed Tasks</p>
-                                        <p className="text-2xl font-bold text-gray-900">{stats.completed_tasks}</p>
+                                        <p className="text-xs sm:text-sm font-medium text-gray-500">Completed Tasks</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.completed_tasks}</p>
                                         <p className="text-xs text-gray-500 mt-1">
                                             {stats.total_tasks > 0 
                                                 ? `${Math.round((stats.completed_tasks / stats.total_tasks) * 100)}% completion rate`
@@ -436,11 +436,11 @@ export default function SettingsPage() {
             {/* Invitations Tab */}
             {activeTab === 'invitations' && (
                 <div>
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-gray-900">Pending Invitations</h2>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
+                        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Pending Invitations</h2>
                         <Button
                             onClick={() => setShowInviteModal(true)}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 w-full sm:w-auto"
                         >
                             <UserPlus size={18} />
                             Invite User
@@ -457,26 +457,27 @@ export default function SettingsPage() {
                             </Button>
                         </Card>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3 sm:space-y-4">
                             {invitations.map((invitation) => (
-                                <Card key={invitation.id} className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4 flex-1">
-                                            <div className="flex items-center gap-2">
+                                <Card key={invitation.id} className="p-4 sm:p-6">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 sm:justify-between">
+                                        <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
+                                            <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
                                                 {getStatusIcon(invitation.status)}
                                             </div>
-                                            <div className="flex-1">
-                                                <p className="font-medium text-gray-900">{invitation.email}</p>
-                                                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                                                    <span className="flex items-center gap-1">
-                                                        <Shield size={14} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-gray-900 truncate">{invitation.email}</p>
+                                                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1 text-xs sm:text-sm text-gray-600">
+                                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                                        <Shield size={12} className="sm:w-3.5 sm:h-3.5" />
                                                         {invitation.role}
                                                     </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock size={14} />
-                                                        Sent {formatDate(invitation.created_at)}
+                                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                                        <Clock size={12} className="sm:w-3.5 sm:h-3.5" />
+                                                        <span className="hidden sm:inline">Sent {formatDate(invitation.created_at)}</span>
+                                                        <span className="sm:hidden">{formatDate(invitation.created_at)}</span>
                                                     </span>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                                                         invitation.status === 'pending' 
                                                             ? 'bg-yellow-100 text-yellow-800'
                                                             : invitation.status === 'accepted'
@@ -492,7 +493,7 @@ export default function SettingsPage() {
                                             <Button
                                                 variant="destructive"
                                                 onClick={() => handleRevokeInvitation(invitation.id)}
-                                                className="flex items-center gap-2"
+                                                className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0"
                                             >
                                                 <Trash2 size={16} />
                                                 Revoke
@@ -509,29 +510,29 @@ export default function SettingsPage() {
             {/* Users Tab */}
             {activeTab === 'users' && (
                 <div>
-                    <div className="mb-6">
-                        <h2 className="text-2xl font-semibold text-gray-900">Organization Users</h2>
-                        <p className="text-gray-600 mt-1">{users.length} total users</p>
+                    <div className="mb-4 sm:mb-6">
+                        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Organization Users</h2>
+                        <p className="text-sm sm:text-base text-gray-600 mt-1">{users.length} total users</p>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                         {users.map((user) => (
-                            <Card key={user.id} className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4 flex-1">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Card key={user.id} className="p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 sm:justify-between">
+                                    <div className="flex items-center gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
+                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                                             <span className="text-blue-600 font-semibold">
                                                 {user.email.charAt(0).toUpperCase()}
                                             </span>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="font-medium text-gray-900">{user.email}</p>
-                                            <p className="text-sm text-gray-600">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-gray-900 truncate">{user.email}</p>
+                                            <p className="text-xs sm:text-sm text-gray-600">
                                                 Joined {formatDate(user.created_at)}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                                         <Select
                                             value={user.role}
                                             onChange={(newRole) => handleUpdateRole(user.id, newRole)}
@@ -539,15 +540,15 @@ export default function SettingsPage() {
                                                 { value: 'admin', label: 'Admin' },
                                                 { value: 'employee', label: 'Employee' }
                                             ]}
-                                            className="w-32"
+                                            className="flex-1 sm:w-32"
                                         />
                                         <Button
                                             variant="destructive"
                                             onClick={() => handleRemoveUser(user.id, user.email)}
-                                            className="flex items-center gap-2"
+                                            className="flex items-center gap-2 flex-shrink-0"
                                         >
                                             <Trash2 size={16} />
-                                            Remove
+                                            <span className="hidden sm:inline">Remove</span>
                                         </Button>
                                     </div>
                                 </div>
