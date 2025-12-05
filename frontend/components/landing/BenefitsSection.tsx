@@ -20,9 +20,10 @@ const BenefitsSection = () => {
             <div className="max-w-6xl mx-auto">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                     <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
                     >
                         <p className="text-sm font-semibold text-blue-600 mb-2 uppercase tracking-wide">Benefits</p>
                         <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -36,10 +37,14 @@ const BenefitsSection = () => {
                             {benefits.map((benefit, i) => (
                                 <motion.div
                                     key={i}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    whileInView={{ opacity: 1, x: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: i * 0.05 }}
+                                    initial={{ opacity: 0 }}
+                                    whileInView={{ opacity: 1 }}
+                                    viewport={{ once: true, margin: "-50px" }}
+                                    transition={{ 
+                                        duration: 0.4,
+                                        delay: i * 0.05,
+                                        ease: "easeOut"
+                                    }}
                                     className="flex items-start gap-3"
                                 >
                                     <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -52,9 +57,10 @@ const BenefitsSection = () => {
                     </motion.div>
                     
                     <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
                         className="relative"
                     >
                         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-8 text-white">

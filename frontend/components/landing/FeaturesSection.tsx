@@ -65,10 +65,14 @@ const FeaturesSection = () => {
                     {features.map((feature, i) => (
                         <motion.div
                             key={i}
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: i * 0.1 }}
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ 
+                                duration: 0.5,
+                                delay: i * 0.1,
+                                ease: "easeOut"
+                            }}
                             className="p-6 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all group"
                         >
                             <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>

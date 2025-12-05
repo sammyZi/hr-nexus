@@ -94,10 +94,14 @@ const PillarsSection = () => {
                     {pillars.map((pillar, i) => (
                         <motion.div
                             key={i}
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: i * 0.05 }}
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ 
+                                duration: 0.5,
+                                delay: i * 0.05,
+                                ease: "easeOut"
+                            }}
                             whileHover={{ y: -5, scale: 1.02 }}
                             className={`p-5 ${pillar.bgColor} rounded-2xl border border-gray-100 hover:shadow-lg transition-all cursor-pointer group`}
                         >
