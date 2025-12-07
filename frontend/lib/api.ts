@@ -385,6 +385,17 @@ export const userApi = {
 };
 
 // Candidate API
+export interface Interview {
+    date: string;
+    interview_type: string;
+    interviewer_id?: string;
+    interviewer_name?: string;
+    status: string;
+    notes?: string;
+    duration_minutes?: number;
+    meeting_link?: string;
+}
+
 export interface Candidate {
     id: string;
     first_name: string;
@@ -404,9 +415,9 @@ export interface Candidate {
     years_of_experience?: number;
     skills: string[];
     education?: string;
+    interviews: Interview[];
     interview_notes?: string;
-    interviewer_ids: string[];
-    interview_dates: string[];
+    next_interview_date?: string;
     resume_url?: string;
     cover_letter_url?: string;
     rating?: number;
@@ -482,6 +493,23 @@ export const candidateApi = {
 
     delete: async (id: string): Promise<void> => {
         await api.delete(`/candidates/${id}`);
+    },
+
+    scheduleInterview: async (
+        candidateId: string,
+        interviewData: {
+            interview_date: string;
+            interview_type: string;
+            interviewer_name?: string;
+            meeting_link?: string;
+            duration_minutes?: number;
+            notes?: string;
+        }
+    ): Promise<{ message: string; interview: Interview }> => {
+        const response = await api.post(`/candidates/${candidateId}/interview`, null, {
+            params: interviewData
+        });
+        return response.data;
     },
 };
 

@@ -1,4 +1,4 @@
-import { RecruitingPage } from "@/components/RecruitingPage";
+import { RecruitingPage } from "@/components/RecruitingPageEnhanced";
 
 export default function Recruiting() {
     return <RecruitingPage />;

@@ -152,6 +152,17 @@ class DocumentInDB(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
+# Interview Model (nested in Candidate)
+class Interview(BaseModel):
+    date: datetime
+    interview_type: str  # Phone, Technical, Final, etc.
+    interviewer_id: Optional[str] = None
+    interviewer_name: Optional[str] = None
+    status: str = "Scheduled"  # Scheduled, Completed, Cancelled
+    notes: Optional[str] = None
+    duration_minutes: Optional[int] = 60
+    meeting_link: Optional[str] = None
+
 class CandidateInDB(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organization_id: str  # Link to organization
@@ -183,10 +194,10 @@ class CandidateInDB(BaseModel):
     skills: List[str] = Field(default_factory=list)
     education: Optional[str] = None
     
-    # Interview Process
+    # Interview Process - Enhanced
+    interviews: List[Interview] = Field(default_factory=list)
     interview_notes: Optional[str] = None
-    interviewer_ids: List[str] = Field(default_factory=list)
-    interview_dates: List[datetime] = Field(default_factory=list)
+    next_interview_date: Optional[datetime] = None
     
     # Documents
     resume_url: Optional[str] = None
@@ -386,9 +397,9 @@ class CandidateResponse(BaseModel):
     years_of_experience: Optional[int] = None
     skills: List[str] = Field(default_factory=list)
     education: Optional[str] = None
+    interviews: List[Interview] = Field(default_factory=list)
     interview_notes: Optional[str] = None
-    interviewer_ids: List[str] = Field(default_factory=list)
-    interview_dates: List[datetime] = Field(default_factory=list)
+    next_interview_date: Optional[datetime] = None
     resume_url: Optional[str] = None
     cover_letter_url: Optional[str] = None
     rating: Optional[int] = None
