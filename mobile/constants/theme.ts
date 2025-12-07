@@ -32,6 +32,13 @@ export const Typography = {
   small: 12,
 };
 
+export const FontFamily = {
+  regular: 'Poppins_400Regular',
+  medium: 'Poppins_500Medium',
+  semiBold: 'Poppins_600SemiBold',
+  bold: 'Poppins_700Bold',
+};
+
 export const BorderRadius = {
   sm: 4,
   md: 8,
