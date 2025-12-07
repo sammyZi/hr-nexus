@@ -1128,9 +1128,9 @@ async def create_candidate(request: Request, candidate: CandidateCreate):
         "years_of_experience": candidate.years_of_experience,
         "skills": candidate.skills,
         "education": candidate.education,
+        "interviews": [],
         "interview_notes": None,
-        "interviewer_ids": [],
-        "interview_dates": [],
+        "next_interview_date": None,
         "resume_url": None,
         "cover_letter_url": None,
         "rating": None,
@@ -1163,9 +1163,9 @@ async def create_candidate(request: Request, candidate: CandidateCreate):
         years_of_experience=new_candidate["years_of_experience"],
         skills=new_candidate["skills"],
         education=new_candidate["education"],
+        interviews=new_candidate["interviews"],
         interview_notes=new_candidate["interview_notes"],
-        interviewer_ids=new_candidate["interviewer_ids"],
-        interview_dates=new_candidate["interview_dates"],
+        next_interview_date=new_candidate["next_interview_date"],
         resume_url=new_candidate["resume_url"],
         cover_letter_url=new_candidate["cover_letter_url"],
         rating=new_candidate["rating"],
@@ -1222,9 +1222,9 @@ async def get_candidates(
             years_of_experience=candidate.get("years_of_experience"),
             skills=candidate.get("skills", []),
             education=candidate.get("education"),
+            interviews=candidate.get("interviews", []),
             interview_notes=candidate.get("interview_notes"),
-            interviewer_ids=candidate.get("interviewer_ids", []),
-            interview_dates=candidate.get("interview_dates", []),
+            next_interview_date=candidate.get("next_interview_date"),
             resume_url=candidate.get("resume_url"),
             cover_letter_url=candidate.get("cover_letter_url"),
             rating=candidate.get("rating"),
@@ -1275,9 +1275,9 @@ async def get_candidate(request: Request, candidate_id: str):
         years_of_experience=candidate.get("years_of_experience"),
         skills=candidate.get("skills", []),
         education=candidate.get("education"),
+        interviews=candidate.get("interviews", []),
         interview_notes=candidate.get("interview_notes"),
-        interviewer_ids=candidate.get("interviewer_ids", []),
-        interview_dates=candidate.get("interview_dates", []),
+        next_interview_date=candidate.get("next_interview_date"),
         resume_url=candidate.get("resume_url"),
         cover_letter_url=candidate.get("cover_letter_url"),
         rating=candidate.get("rating"),
@@ -1339,9 +1339,9 @@ async def update_candidate(request: Request, candidate_id: str, candidate: Candi
         years_of_experience=updated_candidate.get("years_of_experience"),
         skills=updated_candidate.get("skills", []),
         education=updated_candidate.get("education"),
+        interviews=updated_candidate.get("interviews", []),
         interview_notes=updated_candidate.get("interview_notes"),
-        interviewer_ids=updated_candidate.get("interviewer_ids", []),
-        interview_dates=updated_candidate.get("interview_dates", []),
+        next_interview_date=updated_candidate.get("next_interview_date"),
         resume_url=updated_candidate.get("resume_url"),
         cover_letter_url=updated_candidate.get("cover_letter_url"),
         rating=updated_candidate.get("rating"),
@@ -1401,6 +1401,66 @@ async def delete_candidate(request: Request, candidate_id: str):
         raise HTTPException(status_code=404, detail="Candidate not found")
     
     return {"message": "Candidate deleted successfully", "candidate_id": candidate_id}
+
+@app.post("/candidates/{candidate_id}/interview")
+async def schedule_interview(
+    request: Request,
+    candidate_id: str,
+    interview_date: datetime,
+    interview_type: str,
+    interviewer_name: Optional[str] = None,
+    meeting_link: Optional[str] = None,
+    duration_minutes: int = 60,
+    notes: Optional[str] = None
+):
+    """
+    Schedule an interview for a candidate.
+    Adds interview to candidate's interviews array and updates next_interview_date.
+    """
+    if not ObjectId.is_valid(candidate_id):
+        raise HTTPException(status_code=400, detail="Invalid candidate ID")
+    
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Verify candidate belongs to organization
+    db_candidate = await candidates_collection.find_one({
+        "_id": ObjectId(candidate_id),
+        "organization_id": organization_id
+    })
+    
+    if not db_candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    # Create new interview
+    new_interview = {
+        "date": interview_date,
+        "interview_type": interview_type,
+        "interviewer_id": user_id,
+        "interviewer_name": interviewer_name,
+        "status": "Scheduled",
+        "notes": notes,
+        "duration_minutes": duration_minutes,
+        "meeting_link": meeting_link
+    }
+    
+    # Add interview to array and update next_interview_date
+    await candidates_collection.update_one(
+        {"_id": ObjectId(candidate_id), "organization_id": organization_id},
+        {
+            "$push": {"interviews": new_interview},
+            "$set": {
+                "next_interview_date": interview_date,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return {
+        "message": "Interview scheduled successfully",
+        "candidate_id": candidate_id,
+        "interview": new_interview
+    }
 
 # Document endpoints
 from fastapi import BackgroundTasks
