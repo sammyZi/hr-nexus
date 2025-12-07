@@ -1,13 +1,5 @@
-import { Briefcase } from "lucide-react";
-import { PillarPage } from "@/components/PillarPage";
+import { RecruitingPage } from "@/components/RecruitingPage";
 
-export default function RecruitingPage() {
-    return (
-        <PillarPage
-            pillarName="Recruiting"
-            pillarCategory="Recruiting"
-            pillarDescription="Manage candidate screening, interviews, and hiring processes"
-            pillarIcon={<Briefcase size={28} />}
-        />
-    );
+export default function Recruiting() {
+    return <RecruitingPage />;
 }

@@ -20,7 +20,7 @@ api.interceptors.request.use(
             console.log('[API Interceptor] Token exists:', !!token);
             console.log('[API Interceptor] Request URL:', config.url);
             console.log('[API Interceptor] Current headers:', config.headers);
-            
+
             if (token) {
                 // Ensure headers object exists
                 if (!config.headers) {
@@ -55,7 +55,7 @@ api.interceptors.response.use(
                 baseURL: error.config?.baseURL,
             });
             console.error('[API Interceptor] Is backend running at', API_BASE_URL, '?');
-            
+
             // Add user-friendly error message
             error.userMessage = `Cannot connect to server at ${API_BASE_URL}. Please ensure the backend is running.`;
             return Promise.reject(error);
@@ -70,11 +70,11 @@ api.interceptors.response.use(
             data: error.response?.data,
             fullError: error,
         });
-        
+
         if (error.response?.status === 401) {
             console.error('[API Interceptor] 401 Unauthorized - Token may be invalid or expired');
             console.error('[API Interceptor] Request headers:', error.config?.headers);
-            
+
             // Clear token and redirect to signin
             localStorage.removeItem('access_token');
             localStorage.removeItem('organization_id');
@@ -177,9 +177,9 @@ export const documentApi = {
 // Chat API
 export const chatApi = {
     sendMessage: async (
-        query: string, 
-        file?: File, 
-        history?: Array<{role: string; content: string}>
+        query: string,
+        file?: File,
+        history?: Array<{ role: string; content: string }>
     ): Promise<{ answer: string; query: string }> => {
         const formData = new FormData();
         formData.append('query', query);
@@ -381,6 +381,107 @@ export const userApi = {
 
     remove: async (id: string): Promise<void> => {
         await api.delete(`/users/${id}`);
+    },
+};
+
+// Candidate API
+export interface Candidate {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+    location?: string;
+    linkedin_url?: string;
+    portfolio_url?: string;
+    position_applied: string;
+    department?: string;
+    source?: string;
+    status: string;
+    applied_date: string;
+    expected_salary?: string;
+    notice_period?: string;
+    years_of_experience?: number;
+    skills: string[];
+    education?: string;
+    interview_notes?: string;
+    interviewer_ids: string[];
+    interview_dates: string[];
+    resume_url?: string;
+    cover_letter_url?: string;
+    rating?: number;
+    tags: string[];
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    created_by?: string;
+}
+
+export interface CandidateCreate {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+    location?: string;
+    linkedin_url?: string;
+    portfolio_url?: string;
+    position_applied: string;
+    department?: string;
+    source?: string;
+    expected_salary?: string;
+    notice_period?: string;
+    years_of_experience?: number;
+    skills?: string[];
+    education?: string;
+    notes?: string;
+}
+
+export const candidateApi = {
+    getAll: async (filters?: { status?: string; position?: string; department?: string }): Promise<Candidate[]> => {
+        let url = '/candidates';
+        const params = new URLSearchParams();
+
+        if (filters?.status && filters.status !== 'All') {
+            params.append('status', filters.status);
+        }
+        if (filters?.position) {
+            params.append('position', filters.position);
+        }
+        if (filters?.department) {
+            params.append('department', filters.department);
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        const response = await api.get(url);
+        return response.data;
+    },
+
+    getById: async (id: string): Promise<Candidate> => {
+        const response = await api.get(`/candidates/${id}`);
+        return response.data;
+    },
+
+    create: async (data: CandidateCreate): Promise<Candidate> => {
+        const response = await api.post('/candidates', data);
+        return response.data;
+    },
+
+    update: async (id: string, data: Partial<CandidateCreate>): Promise<Candidate> => {
+        const response = await api.put(`/candidates/${id}`, data);
+        return response.data;
+    },
+
+    updateStatus: async (id: string, status: string): Promise<void> => {
+        await api.patch(`/candidates/${id}/status`, null, {
+            params: { status }
+        });
+    },
+
+    delete: async (id: string): Promise<void> => {
+        await api.delete(`/candidates/${id}`);
     },
 };
 

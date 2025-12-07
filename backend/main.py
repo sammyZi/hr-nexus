@@ -17,12 +17,14 @@ from models import (
     DocumentResponse, TaskCategory, generate_slug,
     OrganizationResponse, OrganizationUpdate, OrganizationStats,
     InvitationCreate, InvitationResponse, InvitationAccept,
-    UserResponse, UserRoleUpdate, VerifyEmail, ResendVerification
+    UserResponse, UserRoleUpdate, VerifyEmail, ResendVerification,
+    CandidateStatus, CandidateCreate, CandidateUpdate, CandidateResponse
 )
 import models
 from database import (
     users_collection, tasks_collection, documents_collection, 
-    organizations_collection, close_database, pending_signups_collection
+    organizations_collection, close_database, pending_signups_collection,
+    candidates_collection
 )
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
@@ -1095,6 +1097,310 @@ async def delete_task(request: Request, task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
     
     return {"message": "Task deleted successfully", "task_id": task_id}
+
+# Candidate endpoints
+@app.post("/candidates", response_model=CandidateResponse)
+async def create_candidate(request: Request, candidate: CandidateCreate):
+    """
+    Create a new candidate for the organization.
+    Automatically adds organization_id and created_by from JWT token.
+    """
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Create new candidate with organization_id
+    new_candidate = {
+        "organization_id": organization_id,
+        "first_name": candidate.first_name,
+        "last_name": candidate.last_name,
+        "email": candidate.email,
+        "phone": candidate.phone,
+        "location": candidate.location,
+        "linkedin_url": candidate.linkedin_url,
+        "portfolio_url": candidate.portfolio_url,
+        "position_applied": candidate.position_applied,
+        "department": candidate.department,
+        "source": candidate.source,
+        "status": CandidateStatus.Applied,
+        "applied_date": datetime.utcnow(),
+        "expected_salary": candidate.expected_salary,
+        "notice_period": candidate.notice_period,
+        "years_of_experience": candidate.years_of_experience,
+        "skills": candidate.skills,
+        "education": candidate.education,
+        "interview_notes": None,
+        "interviewer_ids": [],
+        "interview_dates": [],
+        "resume_url": None,
+        "cover_letter_url": None,
+        "rating": None,
+        "tags": [],
+        "notes": candidate.notes,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "created_by": user_id
+    }
+    
+    result = await candidates_collection.insert_one(new_candidate)
+    new_candidate["_id"] = result.inserted_id
+    
+    return CandidateResponse(
+        id=str(new_candidate["_id"]),
+        first_name=new_candidate["first_name"],
+        last_name=new_candidate["last_name"],
+        email=new_candidate["email"],
+        phone=new_candidate["phone"],
+        location=new_candidate["location"],
+        linkedin_url=new_candidate["linkedin_url"],
+        portfolio_url=new_candidate["portfolio_url"],
+        position_applied=new_candidate["position_applied"],
+        department=new_candidate["department"],
+        source=new_candidate["source"],
+        status=new_candidate["status"],
+        applied_date=new_candidate["applied_date"],
+        expected_salary=new_candidate["expected_salary"],
+        notice_period=new_candidate["notice_period"],
+        years_of_experience=new_candidate["years_of_experience"],
+        skills=new_candidate["skills"],
+        education=new_candidate["education"],
+        interview_notes=new_candidate["interview_notes"],
+        interviewer_ids=new_candidate["interviewer_ids"],
+        interview_dates=new_candidate["interview_dates"],
+        resume_url=new_candidate["resume_url"],
+        cover_letter_url=new_candidate["cover_letter_url"],
+        rating=new_candidate["rating"],
+        tags=new_candidate["tags"],
+        notes=new_candidate["notes"],
+        created_at=new_candidate["created_at"],
+        updated_at=new_candidate["updated_at"],
+        created_by=new_candidate["created_by"]
+    )
+
+@app.get("/candidates", response_model=List[CandidateResponse])
+async def get_candidates(
+    request: Request, 
+    status: Optional[str] = None, 
+    position: Optional[str] = None,
+    department: Optional[str] = None
+):
+    """
+    Get all candidates for the current organization.
+    Supports filtering by status, position, and department.
+    """
+    organization_id = request.state.organization_id
+    
+    # Build query with organization filter
+    query = {"organization_id": organization_id}
+    
+    # Add optional filters
+    if status and status != "All":
+        query["status"] = status
+    if position:
+        query["position_applied"] = position
+    if department:
+        query["department"] = department
+    
+    candidates = await candidates_collection.find(query).sort("applied_date", -1).to_list(length=None)
+    
+    return [
+        CandidateResponse(
+            id=str(candidate["_id"]),
+            first_name=candidate["first_name"],
+            last_name=candidate["last_name"],
+            email=candidate["email"],
+            phone=candidate.get("phone"),
+            location=candidate.get("location"),
+            linkedin_url=candidate.get("linkedin_url"),
+            portfolio_url=candidate.get("portfolio_url"),
+            position_applied=candidate["position_applied"],
+            department=candidate.get("department"),
+            source=candidate.get("source"),
+            status=candidate["status"],
+            applied_date=candidate["applied_date"],
+            expected_salary=candidate.get("expected_salary"),
+            notice_period=candidate.get("notice_period"),
+            years_of_experience=candidate.get("years_of_experience"),
+            skills=candidate.get("skills", []),
+            education=candidate.get("education"),
+            interview_notes=candidate.get("interview_notes"),
+            interviewer_ids=candidate.get("interviewer_ids", []),
+            interview_dates=candidate.get("interview_dates", []),
+            resume_url=candidate.get("resume_url"),
+            cover_letter_url=candidate.get("cover_letter_url"),
+            rating=candidate.get("rating"),
+            tags=candidate.get("tags", []),
+            notes=candidate.get("notes"),
+            created_at=candidate["created_at"],
+            updated_at=candidate["updated_at"],
+            created_by=candidate.get("created_by")
+        )
+        for candidate in candidates
+    ]
+
+@app.get("/candidates/{candidate_id}", response_model=CandidateResponse)
+async def get_candidate(request: Request, candidate_id: str):
+    """
+    Get a specific candidate by ID.
+    Verifies candidate belongs to user's organization.
+    """
+    if not ObjectId.is_valid(candidate_id):
+        raise HTTPException(status_code=400, detail="Invalid candidate ID")
+    
+    organization_id = request.state.organization_id
+    
+    candidate = await candidates_collection.find_one({
+        "_id": ObjectId(candidate_id),
+        "organization_id": organization_id
+    })
+    
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    return CandidateResponse(
+        id=str(candidate["_id"]),
+        first_name=candidate["first_name"],
+        last_name=candidate["last_name"],
+        email=candidate["email"],
+        phone=candidate.get("phone"),
+        location=candidate.get("location"),
+        linkedin_url=candidate.get("linkedin_url"),
+        portfolio_url=candidate.get("portfolio_url"),
+        position_applied=candidate["position_applied"],
+        department=candidate.get("department"),
+        source=candidate.get("source"),
+        status=candidate["status"],
+        applied_date=candidate["applied_date"],
+        expected_salary=candidate.get("expected_salary"),
+        notice_period=candidate.get("notice_period"),
+        years_of_experience=candidate.get("years_of_experience"),
+        skills=candidate.get("skills", []),
+        education=candidate.get("education"),
+        interview_notes=candidate.get("interview_notes"),
+        interviewer_ids=candidate.get("interviewer_ids", []),
+        interview_dates=candidate.get("interview_dates", []),
+        resume_url=candidate.get("resume_url"),
+        cover_letter_url=candidate.get("cover_letter_url"),
+        rating=candidate.get("rating"),
+        tags=candidate.get("tags", []),
+        notes=candidate.get("notes"),
+        created_at=candidate["created_at"],
+        updated_at=candidate["updated_at"],
+        created_by=candidate.get("created_by")
+    )
+
+@app.put("/candidates/{candidate_id}", response_model=CandidateResponse)
+async def update_candidate(request: Request, candidate_id: str, candidate: CandidateUpdate):
+    """
+    Update a candidate.
+    Verifies candidate belongs to user's organization before updating.
+    """
+    if not ObjectId.is_valid(candidate_id):
+        raise HTTPException(status_code=400, detail="Invalid candidate ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Find candidate and verify it belongs to user's organization
+    db_candidate = await candidates_collection.find_one({
+        "_id": ObjectId(candidate_id),
+        "organization_id": organization_id
+    })
+    
+    if not db_candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    # Build update data from non-None fields
+    update_data = {k: v for k, v in candidate.model_dump(exclude_none=True).items()}
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Update candidate
+    await candidates_collection.update_one(
+        {"_id": ObjectId(candidate_id), "organization_id": organization_id},
+        {"$set": update_data}
+    )
+    
+    updated_candidate = await candidates_collection.find_one({"_id": ObjectId(candidate_id)})
+    
+    return CandidateResponse(
+        id=str(updated_candidate["_id"]),
+        first_name=updated_candidate["first_name"],
+        last_name=updated_candidate["last_name"],
+        email=updated_candidate["email"],
+        phone=updated_candidate.get("phone"),
+        location=updated_candidate.get("location"),
+        linkedin_url=updated_candidate.get("linkedin_url"),
+        portfolio_url=updated_candidate.get("portfolio_url"),
+        position_applied=updated_candidate["position_applied"],
+        department=updated_candidate.get("department"),
+        source=updated_candidate.get("source"),
+        status=updated_candidate["status"],
+        applied_date=updated_candidate["applied_date"],
+        expected_salary=updated_candidate.get("expected_salary"),
+        notice_period=updated_candidate.get("notice_period"),
+        years_of_experience=updated_candidate.get("years_of_experience"),
+        skills=updated_candidate.get("skills", []),
+        education=updated_candidate.get("education"),
+        interview_notes=updated_candidate.get("interview_notes"),
+        interviewer_ids=updated_candidate.get("interviewer_ids", []),
+        interview_dates=updated_candidate.get("interview_dates", []),
+        resume_url=updated_candidate.get("resume_url"),
+        cover_letter_url=updated_candidate.get("cover_letter_url"),
+        rating=updated_candidate.get("rating"),
+        tags=updated_candidate.get("tags", []),
+        notes=updated_candidate.get("notes"),
+        created_at=updated_candidate["created_at"],
+        updated_at=updated_candidate["updated_at"],
+        created_by=updated_candidate.get("created_by")
+    )
+
+@app.patch("/candidates/{candidate_id}/status")
+async def update_candidate_status(request: Request, candidate_id: str, status: str = Query(...)):
+    """
+    Update candidate status in the hiring pipeline.
+    Verifies candidate belongs to user's organization before updating.
+    """
+    if not ObjectId.is_valid(candidate_id):
+        raise HTTPException(status_code=400, detail="Invalid candidate ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify candidate belongs to organization
+    db_candidate = await candidates_collection.find_one({
+        "_id": ObjectId(candidate_id),
+        "organization_id": organization_id
+    })
+    
+    if not db_candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    # Update status
+    await candidates_collection.update_one(
+        {"_id": ObjectId(candidate_id), "organization_id": organization_id},
+        {"$set": {"status": status, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"message": "Candidate status updated", "candidate_id": candidate_id, "status": status}
+
+@app.delete("/candidates/{candidate_id}")
+async def delete_candidate(request: Request, candidate_id: str):
+    """
+    Delete a candidate.
+    Verifies candidate belongs to user's organization before deleting.
+    """
+    if not ObjectId.is_valid(candidate_id):
+        raise HTTPException(status_code=400, detail="Invalid candidate ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Delete candidate only if it belongs to user's organization
+    result = await candidates_collection.delete_one({
+        "_id": ObjectId(candidate_id),
+        "organization_id": organization_id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    return {"message": "Candidate deleted successfully", "candidate_id": candidate_id}
 
 # Document endpoints
 from fastapi import BackgroundTasks

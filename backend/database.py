@@ -22,6 +22,7 @@ invitations_collection = async_db["invitations"]
 users_collection = async_db["users"]
 tasks_collection = async_db["tasks"]
 documents_collection = async_db["documents"]
+candidates_collection = async_db["candidates"]
 chat_history_collection = async_db["chat_history"]
 pending_signups_collection = async_db["pending_signups"]  # Temporary storage for unverified signups
 
@@ -63,6 +64,12 @@ def create_indexes():
     # Chat history indexes
     sync_db["chat_history"].create_index([("organization_id", 1), ("user_id", 1)])
     sync_db["chat_history"].create_index([("updated_at", -1)])
+    
+    # Candidates indexes (compound indexes for multi-tenancy)
+    sync_db["candidates"].create_index([("organization_id", 1), ("status", 1)])
+    sync_db["candidates"].create_index([("organization_id", 1), ("position_applied", 1)])
+    sync_db["candidates"].create_index([("organization_id", 1), ("email", 1)])
+    sync_db["candidates"].create_index([("organization_id", 1), ("applied_date", -1)])
     
     # Pending signups indexes (with TTL for auto-cleanup after 24 hours)
     sync_db["pending_signups"].create_index("email", unique=True)

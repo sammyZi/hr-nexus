@@ -44,6 +44,17 @@ class TaskCategory(str, enum.Enum):
     Performance = "Performance"
     Offboarding = "Offboarding"
 
+class CandidateStatus(str, enum.Enum):
+    Applied = "Applied"
+    Screening = "Screening"
+    PhoneInterview = "Phone Interview"
+    TechnicalInterview = "Technical Interview"
+    FinalInterview = "Final Interview"
+    OfferExtended = "Offer Extended"
+    Hired = "Hired"
+    Rejected = "Rejected"
+    Withdrawn = "Withdrawn"
+
 # MongoDB Models (Pydantic)
 
 # Organization Model
@@ -135,6 +146,60 @@ class DocumentInDB(BaseModel):
     file_size: int
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
     category: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class CandidateInDB(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organization_id: str  # Link to organization
+    
+    # Personal Information
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    
+    # Job Application Details
+    position_applied: str
+    department: Optional[str] = None
+    source: Optional[str] = None  # LinkedIn, Referral, Job Board, etc.
+    
+    # Status & Timeline
+    status: CandidateStatus = CandidateStatus.Applied
+    applied_date: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Compensation
+    expected_salary: Optional[str] = None
+    notice_period: Optional[str] = None
+    
+    # Experience & Skills
+    years_of_experience: Optional[int] = None
+    skills: List[str] = Field(default_factory=list)
+    education: Optional[str] = None
+    
+    # Interview Process
+    interview_notes: Optional[str] = None
+    interviewer_ids: List[str] = Field(default_factory=list)
+    interview_dates: List[datetime] = Field(default_factory=list)
+    
+    # Documents
+    resume_url: Optional[str] = None
+    cover_letter_url: Optional[str] = None
+    
+    # Metadata
+    rating: Optional[int] = None  # 1-5 stars
+    tags: List[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: Optional[str] = None
 
     class Config:
         populate_by_name = True
@@ -260,3 +325,78 @@ class UserResponse(BaseModel):
 
 class UserRoleUpdate(BaseModel):
     role: str  # "admin" or "employee"
+
+# Candidate API Models
+class CandidateCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    position_applied: str
+    department: Optional[str] = None
+    source: Optional[str] = None
+    expected_salary: Optional[str] = None
+    notice_period: Optional[str] = None
+    years_of_experience: Optional[int] = None
+    skills: List[str] = Field(default_factory=list)
+    education: Optional[str] = None
+    notes: Optional[str] = None
+
+class CandidateUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    position_applied: Optional[str] = None
+    department: Optional[str] = None
+    source: Optional[str] = None
+    status: Optional[CandidateStatus] = None
+    expected_salary: Optional[str] = None
+    notice_period: Optional[str] = None
+    years_of_experience: Optional[int] = None
+    skills: Optional[List[str]] = None
+    education: Optional[str] = None
+    interview_notes: Optional[str] = None
+    rating: Optional[int] = None
+    tags: Optional[List[str]] = None
+    notes: Optional[str] = None
+
+class CandidateResponse(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    position_applied: str
+    department: Optional[str] = None
+    source: Optional[str] = None
+    status: CandidateStatus
+    applied_date: datetime
+    expected_salary: Optional[str] = None
+    notice_period: Optional[str] = None
+    years_of_experience: Optional[int] = None
+    skills: List[str] = Field(default_factory=list)
+    education: Optional[str] = None
+    interview_notes: Optional[str] = None
+    interviewer_ids: List[str] = Field(default_factory=list)
+    interview_dates: List[datetime] = Field(default_factory=list)
+    resume_url: Optional[str] = None
+    cover_letter_url: Optional[str] = None
+    rating: Optional[int] = None
+    tags: List[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
