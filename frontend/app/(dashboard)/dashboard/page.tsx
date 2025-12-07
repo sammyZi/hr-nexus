@@ -46,26 +46,26 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
 
     return (
         <AnimatedCard delay={index * 0.1}>
-            <div className="group relative bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 hover:shadow-2xl hover:border-gray-300 transition-all duration-300 overflow-hidden">
+            <div className="group relative bg-white rounded-xl border border-gray-200 p-4 hover:shadow-lg hover:border-gray-300 transition-all duration-300 overflow-hidden">
                 {/* Gradient background on hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
 
                 <div className="relative flex items-start justify-between">
                     <div className="flex-1">
-                        <p className="text-xs sm:text-sm font-medium text-gray-500 mb-1 sm:mb-2">{stat.title}</p>
-                        <p className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1">{stat.title}</p>
+                        <p className="text-2xl font-bold text-gray-900 mb-0.5">{stat.value}</p>
                         {stat.change && (
-                            <p className={`text-sm font-medium flex items-center gap-1 ${stat.changeType === 'positive' ? 'text-green-600' :
+                            <p className={`text-xs font-medium flex items-center gap-1 ${stat.changeType === 'positive' ? 'text-green-600' :
                                 stat.changeType === 'negative' ? 'text-red-600' :
                                     'text-gray-500'
                                 }`}>
-                                {stat.changeType === 'positive' && <TrendingUp size={14} />}
+                                {stat.changeType === 'positive' && <TrendingUp size={12} />}
                                 {stat.change}
                             </p>
                         )}
                     </div>
-                    <div className={`p-3 sm:p-4 rounded-2xl bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon size={20} className="text-white sm:w-6 sm:h-6" />
+                    <div className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} shadow-md transform group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon size={18} className="text-white" />
                     </div>
                 </div>
             </div>

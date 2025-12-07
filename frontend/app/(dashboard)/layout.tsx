@@ -4,17 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar, SidebarToggle } from "@/components/Sidebar";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { SidebarProvider, useSidebarContext } from "@/contexts/SidebarContext";
 
-export default function DashboardLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+function DashboardContent({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const { isCompact } = useSidebarContext();
 
     useEffect(() => {
         const token = localStorage.getItem("access_token");
@@ -44,16 +42,28 @@ export default function DashboardLayout({
     }
 
     return (
-        <OrganizationProvider>
-            <div className="min-h-screen bg-gray-50">
-                <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-                <SidebarToggle onClick={() => setSidebarOpen(true)} />
+        <div className="min-h-screen bg-gray-50">
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <SidebarToggle onClick={() => setSidebarOpen(true)} />
 
-                {/* Main content */}
-                <main className="lg:pl-72 min-h-screen">
-                    {children}
-                </main>
-            </div>
+            {/* Main content */}
+            <main className={`min-h-screen transition-all duration-300 ${isCompact ? 'lg:pl-20' : 'lg:pl-72'}`}>
+                {children}
+            </main>
+        </div>
+    );
+}
+
+export default function DashboardLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <OrganizationProvider>
+            <SidebarProvider>
+                <DashboardContent>{children}</DashboardContent>
+            </SidebarProvider>
         </OrganizationProvider>
     );
 }

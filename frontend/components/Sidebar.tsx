@@ -27,6 +27,7 @@ import {
     Maximize2,
 } from 'lucide-react';
 import { ConfirmDialog } from './ui/ConfirmDialog';
+import { useSidebarContext } from '@/contexts/SidebarContext';
 
 // ============================================================================
 // NAVIGATION CONFIG
@@ -64,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isPillarsExpanded, setIsPillarsExpanded] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [isCompact, setIsCompact] = useState(false);
+    const { isCompact, setIsCompact } = useSidebarContext();
 
     const handleLogout = () => {
         setShowLogoutConfirm(true);
@@ -92,24 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         }
     }, [searchQuery]);
 
-    // Keyboard shortcuts
-    useEffect(() => {
-        const handleKeyPress = (e: KeyboardEvent) => {
-            // Only trigger if Alt key is pressed
-            if (!e.altKey) return;
 
-            const key = e.key.toUpperCase();
-            const navItem = mainNavigation.find(item => item.shortcut === key);
-
-            if (navItem) {
-                e.preventDefault();
-                router.push(navItem.href);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyPress);
-        return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [router]);
 
     const NavItem = ({ item, compact = false }: { item: typeof mainNavigation[0] & { highlight?: boolean; color?: string }; compact?: boolean }) => {
         const Icon = item.icon;
@@ -230,46 +214,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 `}
             >
                 {/* Logo & Compact Toggle */}
-                <div className={`flex items-center justify-between px-4 py-4 border-b border-gray-200 ${isCompact ? 'bg-gradient-to-b from-blue-50 to-white' : 'bg-gradient-to-r from-blue-50 to-indigo-50'}`}>
+                <div className={`flex items-center justify-between px-4 py-4 border-b border-gray-200 ${isCompact ? 'bg-gradient-to-b from-blue-50 to-white flex-col gap-3' : 'bg-gradient-to-r from-blue-50 to-indigo-50'}`}>
                     {!isCompact && (
-                        <Link href="/dashboard" className="flex items-center gap-2.5 flex-1">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <span className="text-white font-bold text-lg">H</span>
-                            </div>
-                            <div>
-                                <h1 className="text-base font-bold text-gray-900">HR Nexus</h1>
-                                <p className="text-xs text-gray-500">Productivity Hub</p>
-                            </div>
-                        </Link>
-                    )}
-                    {isCompact && (
-                        <div className="flex flex-col items-center w-full gap-2">
-                            <Link href="/dashboard" className="flex items-center justify-center">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
+                        <>
+                            <Link href="/dashboard" className="flex items-center gap-2.5 flex-1">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                                     <span className="text-white font-bold text-lg">H</span>
                                 </div>
+                                <div>
+                                    <h1 className="text-base font-bold text-gray-900">HR Nexus</h1>
+                                    <p className="text-xs text-gray-500">Productivity Hub</p>
+                                </div>
                             </Link>
-                            <div className="w-8 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-                        </div>
+                            <button
+                                onClick={() => setIsCompact(!isCompact)}
+                                className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-110 transition-all duration-200"
+                                title="Compact sidebar (Icons only)"
+                            >
+                                <Minimize2 size={14} />
+                            </button>
+                        </>
                     )}
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => setIsCompact(!isCompact)}
-                            className={`hidden lg:flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${isCompact
-                                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 hover:scale-110'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-110'
-                                }`}
-                            title={isCompact ? "Expand sidebar (Show labels)" : "Compact sidebar (Icons only)"}
-                        >
-                            {isCompact ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
+                    {isCompact && (
+                        <>
+                            <button
+                                onClick={() => setIsCompact(!isCompact)}
+                                className="group relative w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+                                title="Expand sidebar (Show labels)"
+                            >
+                                <span className="text-white font-bold text-lg group-hover:scale-90 transition-transform">H</span>
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center border-2 border-white">
+                                    <Maximize2 size={10} className="text-blue-600" />
+                                </div>
+                            </button>
+                            <div className="w-8 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                        </>
+                    )}
+                    <button
+                        onClick={onClose}
+                        className="lg:hidden absolute top-4 right-4 p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
                 {/* Quick Search */}
