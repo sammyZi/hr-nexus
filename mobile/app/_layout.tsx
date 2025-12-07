@@ -15,18 +15,18 @@ function RootLayoutNav() {
 
     const inAuthGroup = segments[0] === '(auth)';
 
+    console.log('[Navigation] Auth state:', { isAuthenticated, inAuthGroup, segments });
+
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to sign in if not authenticated
-      setTimeout(() => {
-        router.replace('/signin');
-      }, 100);
+      console.log('[Navigation] Redirecting to signin');
+      router.replace('/signin');
     } else if (isAuthenticated && inAuthGroup) {
       // Redirect to app if authenticated
-      setTimeout(() => {
-        router.replace('/(tabs)');
-      }, 100);
+      console.log('[Navigation] Redirecting to tabs');
+      router.replace('/(tabs)');
     }
-  }, [isAuthenticated, loading, segments]);
+  }, [isAuthenticated, loading]);
 
   if (loading) {
     return (

@@ -25,24 +25,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkAuth = async () => {
+    setLoading(true);
     try {
-      const isAuth = await storage.isAuthenticated();
-      if (isAuth) {
-        const userData = await storage.getUser();
-        if (userData) {
-          setUser(userData);
-        } else {
-          // Fetch user data from API
-          try {
-            const currentUser = await api.getCurrentUser();
-            setUser(currentUser);
-            await storage.setUser(currentUser);
-          } catch (apiError) {
-            // If API call fails, token might be invalid
-            console.error('Failed to fetch user data:', apiError);
-            await storage.removeToken();
-            setUser(null);
-          }
+      const token = await storage.getToken();
+      
+      if (!token) {
+        // No token, user is not authenticated
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Try to fetch user data from storage first
+      const userData = await storage.getUser();
+      
+      if (userData) {
+        // Verify token is still valid by making API call
+        try {
+          const currentUser = await api.getCurrentUser();
+          setUser(currentUser);
+          await storage.setUser(currentUser);
+        } catch (apiError) {
+          // Token is invalid, clear everything
+          console.error('Token validation failed:', apiError);
+          await storage.removeToken();
+          setUser(null);
+        }
+      } else {
+        // No cached user data, fetch from API
+        try {
+          const currentUser = await api.getCurrentUser();
+          setUser(currentUser);
+          await storage.setUser(currentUser);
+        } catch (apiError) {
+          // API call failed, clear token
+          console.error('Failed to fetch user data:', apiError);
+          await storage.removeToken();
+          setUser(null);
         }
       }
     } catch (error) {
