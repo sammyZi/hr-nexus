@@ -33,14 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userData);
         } else {
           // Fetch user data from API
-          const currentUser = await api.getCurrentUser();
-          setUser(currentUser);
-          await storage.setUser(currentUser);
+          try {
+            const currentUser = await api.getCurrentUser();
+            setUser(currentUser);
+            await storage.setUser(currentUser);
+          } catch (apiError) {
+            // If API call fails, token might be invalid
+            console.error('Failed to fetch user data:', apiError);
+            await storage.removeToken();
+            setUser(null);
+          }
         }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       await storage.removeToken();
+      setUser(null);
     } finally {
       setLoading(false);
     }

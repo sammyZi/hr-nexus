@@ -17,10 +17,14 @@ function RootLayoutNav() {
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to sign in if not authenticated
-      router.replace('/signin');
+      setTimeout(() => {
+        router.replace('/signin');
+      }, 100);
     } else if (isAuthenticated && inAuthGroup) {
       // Redirect to app if authenticated
-      router.replace('/(tabs)');
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 100);
     }
   }, [isAuthenticated, loading, segments]);
 
