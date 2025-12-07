@@ -48,9 +48,9 @@ export default function DashboardLayout({
             <div className="min-h-screen bg-gray-50">
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
                 <SidebarToggle onClick={() => setSidebarOpen(true)} />
-                
+
                 {/* Main content */}
-                <main className="lg:pl-64 min-h-screen">
+                <main className="lg:pl-72 min-h-screen">
                     {children}
                 </main>
             </div>

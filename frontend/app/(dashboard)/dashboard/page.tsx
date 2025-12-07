@@ -4,20 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
     FileText,
-    MessageSquare,
-    Clock,
-    CheckCircle2,
     Sparkles,
     TrendingUp,
-    Users,
-    Calendar,
     ArrowRight,
     Zap,
     Target,
     Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { documentApi, taskApi } from "@/lib/api";
+import { documentApi } from "@/lib/api";
 import { AnimatedCard } from "@/components/ui/AnimatedCard";
 import { motion } from "framer-motion";
 
@@ -54,17 +49,16 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
             <div className="group relative bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 hover:shadow-2xl hover:border-gray-300 transition-all duration-300 overflow-hidden">
                 {/* Gradient background on hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                
+
                 <div className="relative flex items-start justify-between">
                     <div className="flex-1">
                         <p className="text-xs sm:text-sm font-medium text-gray-500 mb-1 sm:mb-2">{stat.title}</p>
                         <p className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1">{stat.value}</p>
                         {stat.change && (
-                            <p className={`text-sm font-medium flex items-center gap-1 ${
-                                stat.changeType === 'positive' ? 'text-green-600' :
+                            <p className={`text-sm font-medium flex items-center gap-1 ${stat.changeType === 'positive' ? 'text-green-600' :
                                 stat.changeType === 'negative' ? 'text-red-600' :
-                                'text-gray-500'
-                            }`}>
+                                    'text-gray-500'
+                                }`}>
                                 {stat.changeType === 'positive' && <TrendingUp size={14} />}
                                 {stat.change}
                             </p>
@@ -92,27 +86,20 @@ export default function DashboardPage() {
         const hour = new Date().getHours();
         if (hour >= 12 && hour < 17) setGreeting("Good afternoon");
         else if (hour >= 17) setGreeting("Good evening");
-        
+
         fetchDashboardStats();
     }, []);
 
     const fetchDashboardStats = async () => {
         setLoading(true);
         try {
-            const tasks = await taskApi.getAll();
             let documents = [];
-            
+
             try {
                 documents = await documentApi.getAll();
             } catch (error) {
-                console.warn("Failed to fetch documents, continuing with tasks only", error);
+                console.warn("Failed to fetch documents", error);
             }
-
-            const activeTasks = tasks.filter(t => t.status !== 'Completed').length;
-            const completedTasks = tasks.filter(t => t.status === 'Completed').length;
-            const completionRate = tasks.length > 0 
-                ? Math.round((completedTasks / tasks.length) * 100) 
-                : 0;
 
             const dashboardStats: StatCard[] = [
                 {
@@ -120,24 +107,32 @@ export default function DashboardPage() {
                     value: documents.length,
                     icon: FileText,
                     color: "blue",
+                    change: documents.length > 0 ? `${documents.length} uploaded` : "Upload your first document",
+                    changeType: "neutral",
                 },
                 {
-                    title: "Total Tasks",
-                    value: tasks.length,
-                    icon: MessageSquare,
+                    title: "AI Assistant",
+                    value: "Ready",
+                    icon: Sparkles,
                     color: "purple",
+                    change: "Ask me anything",
+                    changeType: "positive",
                 },
                 {
-                    title: "Active Tasks",
-                    value: activeTasks,
-                    icon: Clock,
+                    title: "HR Pillars",
+                    value: 8,
+                    icon: Target,
                     color: "orange",
+                    change: "All active",
+                    changeType: "positive",
                 },
                 {
-                    title: "Completed Tasks",
-                    value: completedTasks,
-                    icon: CheckCircle2,
+                    title: "Quick Access",
+                    value: "Active",
+                    icon: Zap,
                     color: "green",
+                    change: "All systems ready",
+                    changeType: "positive",
                 },
             ];
 
@@ -191,7 +186,7 @@ export default function DashboardPage() {
                 {/* Quick Actions */}
                 <section>
                     <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Quick Actions</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         <AnimatedCard delay={0.4}>
                             <Link href="/ai-assistant">
                                 <div className="group relative bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 hover:shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 overflow-hidden">
@@ -217,22 +212,6 @@ export default function DashboardPage() {
                                     <p className="text-gray-600 text-sm mb-4">Add new HR documents to your library</p>
                                     <div className="flex items-center text-purple-600 font-medium group-hover:gap-2 transition-all">
                                         <span>Upload Now</span>
-                                        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                                    </div>
-                                </div>
-                            </Link>
-                        </AnimatedCard>
-
-                        <AnimatedCard delay={0.6}>
-                            <Link href="/tasks">
-                                <div className="group relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-2xl hover:border-green-300 transition-all duration-300">
-                                    <div className="p-3 bg-green-100 rounded-xl w-fit mb-4 group-hover:scale-110 transition-transform">
-                                        <Target className="text-green-600" size={24} />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Manage Tasks</h3>
-                                    <p className="text-gray-600 text-sm mb-4">Track and complete your HR tasks</p>
-                                    <div className="flex items-center text-green-600 font-medium group-hover:gap-2 transition-all">
-                                        <span>View Tasks</span>
                                         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </div>
@@ -271,7 +250,7 @@ export default function DashboardPage() {
 
                                 <div className="flex items-start gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors">
                                     <div className="p-2 bg-purple-100 rounded-lg">
-                                        <Users className="text-purple-600" size={20} />
+                                        <Target className="text-purple-600" size={20} />
                                     </div>
                                     <div className="flex-1">
                                         <p className="font-medium text-gray-900">Welcome to HR Nexus</p>

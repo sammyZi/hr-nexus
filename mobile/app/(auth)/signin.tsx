@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,12 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
-  Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
-import { Spacing, FontFamily } from '@/constants/theme';
+import { FontFamily } from '@/constants/theme';
 import {
   useFonts,
   Poppins_400Regular,
@@ -49,14 +47,7 @@ export default function SignInScreen() {
     Poppins_700Bold,
   });
 
-  useEffect(() => {
-    // Auto-focus email input after a short delay
-    const timer = setTimeout(() => {
-      emailInputRef.current?.focus();
-    }, 300);
 
-    return () => clearTimeout(timer);
-  }, []);
 
   if (!fontsLoaded) {
     return null;
@@ -85,19 +76,16 @@ export default function SignInScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={styles.container}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-          >
             {/* Header Section with Gradient */}
             <LinearGradient
               colors={['#2563EB', '#1D4ED8', '#4F46E5']}
@@ -158,7 +146,6 @@ export default function SignInScreen() {
                       textContentType="emailAddress"
                       editable={!loading}
                       onSubmitEditing={() => passwordInputRef.current?.focus()}
-                      blurOnSubmit={false}
                     />
                   </View>
                 </View>
@@ -250,8 +237,7 @@ export default function SignInScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </View>
-    </TouchableWithoutFeedback>
+    </View>
   );
 }
 
@@ -265,7 +251,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingBottom: 30,
+    paddingBottom: isSmallDevice ? 20 : 30,
   },
   headerGradient: {
     height: isSmallDevice ? 180 : 220,
