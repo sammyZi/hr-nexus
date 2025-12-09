@@ -25,6 +25,7 @@ documents_collection = async_db["documents"]
 candidates_collection = async_db["candidates"]
 chat_history_collection = async_db["chat_history"]
 pending_signups_collection = async_db["pending_signups"]  # Temporary storage for unverified signups
+cases_collection = async_db["cases"]
 
 def get_database():
     """Get async database instance"""
@@ -69,7 +70,14 @@ def create_indexes():
     sync_db["candidates"].create_index([("organization_id", 1), ("status", 1)])
     sync_db["candidates"].create_index([("organization_id", 1), ("position_applied", 1)])
     sync_db["candidates"].create_index([("organization_id", 1), ("email", 1)])
+    sync_db["candidates"].create_index([("organization_id", 1), ("email", 1)])
     sync_db["candidates"].create_index([("organization_id", 1), ("applied_date", -1)])
+    
+    # Cases indexes
+    sync_db["cases"].create_index([("organization_id", 1), ("status", 1)])
+    sync_db["cases"].create_index([("organization_id", 1), ("priority", 1)])
+    sync_db["cases"].create_index([("organization_id", 1), ("case_type", 1)])
+    sync_db["cases"].create_index([("organization_id", 1), ("created_at", -1)])
     
     # Pending signups indexes (with TTL for auto-cleanup after 24 hours)
     sync_db["pending_signups"].create_index("email", unique=True)

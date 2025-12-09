@@ -1,13 +1,5 @@
-import { Users } from "lucide-react";
-import { PillarPage } from "@/components/PillarPage";
+import EmployeeRelationsPage from "@/components/EmployeeRelations/EmployeeRelationsPage";
 
-export default function EmployeeRelationsPage() {
-    return (
-        <PillarPage
-            pillarName="Employee Relations"
-            pillarCategory="Employee Relations"
-            pillarDescription="Handle employee concerns, conflicts, and workplace culture"
-            pillarIcon={<Users size={28} />}
-        />
-    );
+export default function EmployeeRelations() {
+    return <EmployeeRelationsPage />;
 }

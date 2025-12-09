@@ -18,13 +18,14 @@ from models import (
     OrganizationResponse, OrganizationUpdate, OrganizationStats,
     InvitationCreate, InvitationResponse, InvitationAccept,
     UserResponse, UserRoleUpdate, VerifyEmail, ResendVerification,
-    CandidateStatus, CandidateCreate, CandidateUpdate, CandidateResponse
+    CandidateStatus, CandidateCreate, CandidateUpdate, CandidateResponse,
+    CaseCreate, CaseUpdate, CaseResponse, EmployeeCase, CaseStatus, CaseType
 )
 import models
 from database import (
     users_collection, tasks_collection, documents_collection, 
     organizations_collection, close_database, pending_signups_collection,
-    candidates_collection
+    candidates_collection, cases_collection
 )
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
@@ -1895,6 +1896,213 @@ async def chat(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+
+
+# ============================================================================
+# EMPLOYEE RELATIONS - CASE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/cases", response_model=List[CaseResponse])
+async def get_all_cases(request: Request, status: Optional[str] = None):
+    """
+    Get all employee relations cases for the organization.
+    Optionally filter by status.
+    
+    Args:
+        request: Request object with organization context
+        status: Optional status filter (Open, Investigating, Action Required, Resolved, Closed)
+    """
+    organization_id = request.state.organization_id
+    
+    # Build query filter
+    query_filter = {"organization_id": organization_id}
+    if status and status != "All":
+        query_filter["status"] = status
+    
+    # Fetch cases from database
+    cases_cursor = cases_collection.find(query_filter).sort("created_at", -1)
+    cases_list = await cases_cursor.to_list(length=None)
+    
+    # Convert to response model
+    return [
+        CaseResponse(
+            id=str(case["_id"]),
+            organization_id=case["organization_id"],
+            title=case["title"],
+            description=case["description"],
+            case_type=case["case_type"],
+            status=case["status"],
+            priority=case["priority"],
+            employee_name=case["employee_name"],
+            reporter_name=case.get("reporter_name", "Unknown"),
+            date_reported=case.get("date_reported", case["created_at"]),
+            incident_date=case.get("incident_date"),
+            actions_taken=case.get("actions_taken", []),
+            is_confidential=case.get("is_confidential", True),
+            created_at=case["created_at"],
+            updated_at=case["updated_at"]
+        )
+        for case in cases_list
+    ]
+
+@app.get("/cases/{case_id}", response_model=CaseResponse)
+async def get_case_by_id(request: Request, case_id: str):
+    """
+    Get a specific employee relations case by ID.
+    Verifies the case belongs to the user's organization.
+    
+    Args:
+        request: Request object with organization context
+        case_id: Case ID to retrieve
+    """
+    if not ObjectId.is_valid(case_id):
+        raise HTTPException(status_code=400, detail="Invalid case ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Find case and verify organization
+    case = await cases_collection.find_one({
+        "_id": ObjectId(case_id),
+        "organization_id": organization_id
+    })
+    
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    return CaseResponse(
+        id=str(case["_id"]),
+        organization_id=case["organization_id"],
+        title=case["title"],
+        description=case["description"],
+        case_type=case["case_type"],
+        status=case["status"],
+        priority=case["priority"],
+        employee_name=case["employee_name"],
+        reporter_name=case.get("reporter_name", "Unknown"),
+        date_reported=case.get("date_reported", case["created_at"]),
+        incident_date=case.get("incident_date"),
+        actions_taken=case.get("actions_taken", []),
+        is_confidential=case.get("is_confidential", True),
+        created_at=case["created_at"],
+        updated_at=case["updated_at"]
+    )
+
+@app.post("/cases", response_model=CaseResponse)
+async def create_case(request: Request, case_data: CaseCreate):
+    """
+    Create a new employee relations case.
+    Auto-populates organization_id and reporter information from JWT.
+    
+    Args:
+        request: Request object with organization context
+        case_data: Case creation data
+    """
+    organization_id = request.state.organization_id
+    user_email = request.state.email
+    
+    # Create new case document
+    new_case = {
+        "organization_id": organization_id,
+        "title": case_data.title,
+        "description": case_data.description,
+        "case_type": case_data.case_type,
+        "status": CaseStatus.Open,
+        "priority": case_data.priority,
+        "employee_name": case_data.employee_name,
+        "reporter_name": user_email,  # Use current user's email as reporter
+        "date_reported": datetime.utcnow(),
+        "incident_date": case_data.incident_date,
+        "location": case_data.location,
+        "actions_taken": [],
+        "is_confidential": case_data.is_confidential,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    # Insert into database
+    result = await cases_collection.insert_one(new_case)
+    
+    # Fetch the created case
+    created_case = await cases_collection.find_one({"_id": result.inserted_id})
+    
+    return CaseResponse(
+        id=str(created_case["_id"]),
+        organization_id=created_case["organization_id"],
+        title=created_case["title"],
+        description=created_case["description"],
+        case_type=created_case["case_type"],
+        status=created_case["status"],
+        priority=created_case["priority"],
+        employee_name=created_case["employee_name"],
+        reporter_name=created_case["reporter_name"],
+        date_reported=created_case["date_reported"],
+        incident_date=created_case.get("incident_date"),
+        actions_taken=created_case["actions_taken"],
+        is_confidential=created_case["is_confidential"],
+        created_at=created_case["created_at"],
+        updated_at=created_case["updated_at"]
+    )
+
+@app.patch("/cases/{case_id}", response_model=CaseResponse)
+async def update_case(request: Request, case_id: str, case_update: CaseUpdate):
+    """
+    Update an existing employee relations case.
+    Verifies the case belongs to the user's organization.
+    
+    Args:
+        request: Request object with organization context
+        case_id: Case ID to update
+        case_update: Update data
+    """
+    if not ObjectId.is_valid(case_id):
+        raise HTTPException(status_code=400, detail="Invalid case ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify case exists and belongs to organization
+    existing_case = await cases_collection.find_one({
+        "_id": ObjectId(case_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    # Build update document
+    update_dict = case_update.model_dump(exclude_none=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    # Always update the updated_at timestamp
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    # Update the case
+    await cases_collection.update_one(
+        {"_id": ObjectId(case_id)},
+        {"$set": update_dict}
+    )
+    
+    # Fetch updated case
+    updated_case = await cases_collection.find_one({"_id": ObjectId(case_id)})
+    
+    return CaseResponse(
+        id=str(updated_case["_id"]),
+        organization_id=updated_case["organization_id"],
+        title=updated_case["title"],
+        description=updated_case["description"],
+        case_type=updated_case["case_type"],
+        status=updated_case["status"],
+        priority=updated_case["priority"],
+        employee_name=updated_case["employee_name"],
+        reporter_name=updated_case.get("reporter_name", "Unknown"),
+        date_reported=updated_case.get("date_reported", updated_case["created_at"]),
+        incident_date=updated_case.get("incident_date"),
+        actions_taken=updated_case.get("actions_taken", []),
+        is_confidential=updated_case.get("is_confidential", True),
+        created_at=updated_case["created_at"],
+        updated_at=updated_case["updated_at"]
+    )
 
 
 if __name__ == "__main__":

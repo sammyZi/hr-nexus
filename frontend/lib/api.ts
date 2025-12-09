@@ -513,4 +513,71 @@ export const candidateApi = {
     },
 };
 
+// Employee Relations - Case Management API
+
+export interface EmployeeCase {
+    id: string;
+    organization_id: string;
+    title: string;
+    description: string;
+    case_type: string;
+    status: string;
+    priority: string;
+    employee_name: string;
+    reporter_name: string;
+    date_reported: string;
+    incident_date?: string;
+    location?: string;
+    actions_taken: string[];
+    is_confidential: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CaseCreate {
+    title: string;
+    description: string;
+    case_type: string;
+    priority: string;
+    employee_name: string;
+    incident_date?: string;
+    location?: string;
+    is_confidential: boolean;
+}
+
+export interface CaseUpdate {
+    title?: string;
+    description?: string;
+    case_type?: string;
+    status?: string;
+    priority?: string;
+    actions_taken?: string[];
+    resolution_notes?: string;
+}
+
+export const caseApi = {
+    getAll: async (status?: string): Promise<EmployeeCase[]> => {
+        const url = status && status !== 'All'
+            ? `/cases?status=${status}`
+            : '/cases';
+        const response = await api.get(url);
+        return response.data;
+    },
+
+    getById: async (id: string): Promise<EmployeeCase> => {
+        const response = await api.get(`/cases/${id}`);
+        return response.data;
+    },
+
+    create: async (data: CaseCreate): Promise<EmployeeCase> => {
+        const response = await api.post('/cases', data);
+        return response.data;
+    },
+
+    update: async (id: string, data: CaseUpdate): Promise<EmployeeCase> => {
+        const response = await api.patch(`/cases/${id}`, data);
+        return response.data;
+    },
+};
+
 export default api;
