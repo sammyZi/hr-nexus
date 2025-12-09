@@ -7,10 +7,11 @@ import {
     MoreVertical, User, Calendar, MessageSquare, Shield,
     CheckCircle, XCircle, Clock
 } from "lucide-react";
-import { EmployeeCase, caseApi, CaseCreate } from "@/lib/api";
+import { EmployeeCase, caseApi, CaseCreate, CaseUpdate } from "@/lib/api";
 import { CaseModal } from "./CaseModal";
 import { StatsCards } from "./StatsCards";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { CaseActionsMenu } from "./CaseActionsMenu";
 
 const TABS = ["All Cases", "Policies", "Reports"];
 const STATUS_COLORS: Record<string, string> = {
@@ -24,6 +25,8 @@ const STATUS_COLORS: Record<string, string> = {
 export default function EmployeeRelationsPage() {
     const [activeTab, setActiveTab] = useState("All Cases");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedCase, setSelectedCase] = useState<EmployeeCase | undefined>(undefined);
     const [cases, setCases] = useState<EmployeeCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -53,6 +56,45 @@ export default function EmployeeRelationsPage() {
             console.error(error);
             alert("Failed to create case");
         }
+    };
+
+    const handleEditCase = async (data: CaseCreate) => {
+        if (!selectedCase) return;
+        try {
+            const updateData: CaseUpdate = {
+                title: data.title,
+                description: data.description,
+                case_type: data.case_type as any,
+                priority: data.priority,
+            };
+            await caseApi.update(selectedCase.id, updateData);
+            await fetchCases();
+            setIsEditModalOpen(false);
+            setSelectedCase(undefined);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to update case");
+        }
+    };
+
+    const handleMarkComplete = async (caseId: string) => {
+        try {
+            await caseApi.update(caseId, { status: "Resolved" as any });
+            await fetchCases();
+        } catch (error) {
+            console.error(error);
+            alert("Failed to mark case as complete");
+        }
+    };
+
+    const handleViewCase = (caseItem: EmployeeCase) => {
+        setSelectedCase(caseItem);
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditCaseClick = (caseItem: EmployeeCase) => {
+        setSelectedCase(caseItem);
+        setIsEditModalOpen(true);
     };
 
     const filteredCases = cases.filter(c =>
@@ -92,7 +134,7 @@ export default function EmployeeRelationsPage() {
                 />
 
                 {/* Main Content Area */}
-                <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-visible">
                     {/* Toolbar */}
                     <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-10">
                         <div className="flex flex-col md:flex-row justify-between gap-4">
@@ -144,7 +186,7 @@ export default function EmployeeRelationsPage() {
                     </div>
 
                     {/* Case List */}
-                    <div className="p-2">
+                    <div className="p-2 overflow-visible">
                         {loading ? (
                             <div className="py-20 text-center text-gray-500">Loading cases...</div>
                         ) : activeTab === "All Cases" ? (
@@ -155,6 +197,7 @@ export default function EmployeeRelationsPage() {
                                         layoutId={caseItem.id}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
+                                        onClick={() => handleViewCase(caseItem)}
                                         className="group relative bg-white hover:bg-gray-50 p-5 rounded-2xl border border-transparent hover:border-gray-200 transition-all cursor-pointer flex flex-col md:flex-row gap-6 items-start md:items-center"
                                     >
                                         {/* Status Indicator Bar */}
@@ -197,10 +240,16 @@ export default function EmployeeRelationsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-2 hover:bg-gray-200 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
-                                                <MoreVertical className="w-5 h-5" />
-                                            </button>
+                                        <div
+                                            className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <CaseActionsMenu
+                                                caseId={caseItem.id}
+                                                onView={() => handleViewCase(caseItem)}
+                                                onEdit={() => handleEditCaseClick(caseItem)}
+                                                onMarkComplete={() => handleMarkComplete(caseItem.id)}
+                                            />
                                         </div>
                                     </motion.div>
                                 ))}
@@ -227,6 +276,16 @@ export default function EmployeeRelationsPage() {
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 onSubmit={handleCreateCase}
+            />
+
+            <CaseModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedCase(undefined);
+                }}
+                onSubmit={handleEditCase}
+                caseToEdit={selectedCase}
             />
         </div>
     );

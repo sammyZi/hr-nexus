@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react';
+import { useState, Fragment, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { X, Calendar, MapPin, User, AlertTriangle, FileText, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -15,17 +15,45 @@ interface CaseModalProps {
 
 export const CaseModal = ({ isOpen, onClose, onSubmit, caseToEdit }: CaseModalProps) => {
     const [formData, setFormData] = useState<CaseCreate>({
-        title: caseToEdit?.title || '',
-        description: caseToEdit?.description || '',
-        case_type: caseToEdit?.case_type || 'Disciplinary',
-        priority: caseToEdit?.priority || 'Medium',
-        employee_name: caseToEdit?.employee_name || '',
-        incident_date: caseToEdit?.incident_date || '',
-        location: caseToEdit?.location || '',
-        is_confidential: caseToEdit?.is_confidential ?? true,
+        title: '',
+        description: '',
+        case_type: 'Disciplinary',
+        priority: 'Medium',
+        employee_name: '',
+        incident_date: '',
+        location: '',
+        is_confidential: true,
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Update form data when caseToEdit changes
+    useEffect(() => {
+        if (caseToEdit) {
+            setFormData({
+                title: caseToEdit.title || '',
+                description: caseToEdit.description || '',
+                case_type: caseToEdit.case_type || 'Disciplinary',
+                priority: caseToEdit.priority || 'Medium',
+                employee_name: caseToEdit.employee_name || '',
+                incident_date: caseToEdit.incident_date || '',
+                location: caseToEdit.location || '',
+                is_confidential: caseToEdit.is_confidential ?? true,
+            });
+        } else {
+            // Reset form for new case
+            setFormData({
+                title: '',
+                description: '',
+                case_type: 'Disciplinary',
+                priority: 'Medium',
+                employee_name: '',
+                incident_date: '',
+                location: '',
+                is_confidential: true,
+            });
+        }
+    }, [caseToEdit, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
