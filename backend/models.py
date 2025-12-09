@@ -55,6 +55,20 @@ class CandidateStatus(str, enum.Enum):
     Rejected = "Rejected"
     Withdrawn = "Withdrawn"
 
+class CaseType(str, enum.Enum):
+    Disciplinary = "Disciplinary"
+    Grievance = "Grievance"
+    Performance = "Performance"
+    Investigation = "Investigation"
+    PolicyViolation = "Policy Violation"
+
+class CaseStatus(str, enum.Enum):
+    Open = "Open"
+    Investigating = "Investigating"
+    ActionRequired = "Action Required"
+    Resolved = "Resolved"
+    Closed = "Closed"
+
 # MongoDB Models (Pydantic)
 
 # Organization Model
@@ -211,6 +225,47 @@ class CandidateInDB(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+# Employee Relations Case Model
+class EmployeeCase(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organization_id: str
+    
+    title: str
+    description: str
+    case_type: CaseType
+    status: CaseStatus = CaseStatus.Open
+    priority: str = "Medium"  # Low, Medium, High, Critical
+    
+    # People involved
+    employee_name: str
+    employee_id: Optional[str] = None
+    reporter_name: str
+    reporter_id: Optional[str] = None
+    handler_id: Optional[str] = None  # HR rep handling the case
+    
+    # Details
+    date_reported: datetime = Field(default_factory=datetime.utcnow)
+    incident_date: Optional[datetime] = None
+    location: Optional[str] = None
+    
+    # Outcomes
+    actions_taken: List[str] = Field(default_factory=list)
+    resolution_notes: Optional[str] = None
+    closed_at: Optional[datetime] = None
+    
+    # Metadata
+    tags: List[str] = Field(default_factory=list)
+    is_confidential: bool = True
+    documents: List[str] = Field(default_factory=list)  # URLs to docs
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         populate_by_name = True
@@ -408,6 +463,47 @@ class CandidateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+# Case API Models
+class CaseCreate(BaseModel):
+    title: str
+    description: str
+    case_type: CaseType
+    priority: str = "Medium"
+    employee_name: str
+    incident_date: Optional[datetime] = None
+    location: Optional[str] = None
+    is_confidential: bool = True
+
+class CaseUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    case_type: Optional[CaseType] = None
+    status: Optional[CaseStatus] = None
+    priority: Optional[str] = None
+    actions_taken: Optional[List[str]] = None
+    resolution_notes: Optional[str] = None
+    handler_id: Optional[str] = None
+
+class CaseResponse(BaseModel):
+    id: str
+    organization_id: str
+    title: str
+    description: str
+    case_type: CaseType
+    status: CaseStatus
+    priority: str
+    employee_name: str
+    reporter_name: str
+    date_reported: datetime
+    incident_date: Optional[datetime] = None
+    actions_taken: List[str] = []
+    is_confidential: bool
+    created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True
