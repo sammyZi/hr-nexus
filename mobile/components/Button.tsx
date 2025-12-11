@@ -72,8 +72,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 6,
+    transitionProperty: 'background-color, box-shadow',
+    transitionDuration: '150ms',
   },
   fullWidth: {
     width: '100%',
@@ -98,20 +105,25 @@ const styles = StyleSheet.create({
   },
   // Sizes
   smallButton: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
+    minHeight: 40,
   },
   mediumButton: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    minHeight: 48,
   },
   largeButton: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.lg,
+    minHeight: 56,
   },
   // Text styles
   text: {
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: FontFamily.semiBold,
+    letterSpacing: 0.5,
   },
   primaryText: {
     color: Colors.background,

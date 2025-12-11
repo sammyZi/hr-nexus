@@ -90,7 +90,13 @@ export function TaskCard({ task, onPress, onStatusChange, onDelete }: TaskCardPr
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 6,
   },
   header: {
     marginBottom: Spacing.sm,
@@ -103,20 +109,29 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: Typography.h4,
-    fontWeight: '600',
+    fontSize: Typography.h3,
+    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.text,
     marginRight: Spacing.sm,
+    letterSpacing: 0.5,
   },
   priorityBadge: {
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    borderRadius: 12,
+    borderRadius: BorderRadius.full,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   priorityText: {
-    fontSize: Typography.small,
-    fontWeight: '600',
+    fontSize: Typography.caption,
+    fontWeight: '700',
+    fontFamily: FontFamily.semiBold,
     color: Colors.background,
+    letterSpacing: 0.25,
   },
   meta: {
     flexDirection: 'row',
@@ -124,13 +139,20 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   statusBadge: {
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    borderRadius: 12,
+    borderRadius: BorderRadius.full,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statusText: {
-    fontSize: Typography.small,
-    fontWeight: '600',
+    fontSize: Typography.caption,
+    fontWeight: '700',
+    fontFamily: FontFamily.semiBold,
+    letterSpacing: 0.25,
   },
   category: {
     fontSize: Typography.caption,
@@ -153,8 +175,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   actionText: {
-    fontSize: Typography.caption,
-    fontWeight: '600',
+    fontSize: Typography.body,
+    fontWeight: '700',
+    fontFamily: FontFamily.semiBold,
     color: Colors.success,
+    letterSpacing: 0.25,
   },
 });
