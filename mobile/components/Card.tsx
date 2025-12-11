@@ -51,24 +51,23 @@ export function Card({ children, style, onPress, title, subtitle }: CardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.background,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   header: {
     marginBottom: Spacing.md,
   },
   title: {
-    fontSize: Typography.h4,
-    fontWeight: '600',
+    fontSize: Typography.h3,
+    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.text,
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: Typography.caption,
