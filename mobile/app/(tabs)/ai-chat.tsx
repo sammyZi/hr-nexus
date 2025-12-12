@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Colors, Spacing, Typography, BorderRadius, FontFamily } from '@/constants/theme';
@@ -41,11 +42,19 @@ export default function AIChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
+      <View style={styles.header}>
+        <Ionicons name="chatbubbles" size={40} color={Colors.primary} style={styles.headerIcon} />
+        <Text style={styles.headerTitle}>AI Chat Assistant</Text>
+        <Text style={styles.headerSubtitle}>Ask anything and get instant answers!</Text>
+      </View>
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={[styles.message, item.sender === 'user' ? styles.userMessage : styles.aiMessage]}>
+            {item.sender === 'ai' && (
+              <Ionicons name="sparkles" size={18} color={Colors.info} style={styles.messageIcon} />
+            )}
             <Text style={styles.messageText}>{item.text}</Text>
           </View>
         )}
@@ -74,6 +83,32 @@ export default function AIChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  headerIcon: {
+    marginBottom: Spacing.sm,
+  },
+  headerTitle: {
+    fontSize: Typography.h2,
+    fontWeight: '700',
+    color: Colors.primary,
+    fontFamily: FontFamily.bold,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: Typography.body,
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.medium,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.surface,
@@ -88,16 +123,25 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   userMessage: {
     alignSelf: 'flex-end',
     backgroundColor: Colors.primary,
+    borderBottomRightRadius: BorderRadius.full,
+    borderTopRightRadius: BorderRadius.full,
   },
   aiMessage: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
+    borderBottomLeftRadius: BorderRadius.full,
+    borderTopLeftRadius: BorderRadius.full,
+  },
+  messageIcon: {
+    marginRight: Spacing.xs,
   },
   messageText: {
     color: Colors.text,
