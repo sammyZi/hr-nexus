@@ -34,7 +34,7 @@ const statCards: StatCard[] = [
   {
     title: 'HR Pillars',
     value: 8,
-    icon: <Ionicons name="cart-outline" size={24} color="#f59e42" />,
+    icon: <Ionicons name="briefcase-outline" size={24} color="#f59e42" />,
     color: '#f59e42',
     change: 'All active',
     changeType: 'positive',
@@ -110,7 +110,7 @@ export default function DashboardScreen() {
           </View>
         </View>
         <View style={styles.activityItem}>
-          <Ionicons name="cart-outline" size={20} color={Colors.secondary} style={styles.activityIcon} />
+          <Ionicons name="briefcase-outline" size={20} color={Colors.secondary} style={styles.activityIcon} />
           <View style={styles.activityTextWrap}>
             <Text style={styles.activityTitle}>Welcome to HR Nexus</Text>
             <Text style={styles.activityDesc}>Get started by uploading your first document</Text>
