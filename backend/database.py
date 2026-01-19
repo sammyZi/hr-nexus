@@ -27,6 +27,8 @@ chat_history_collection = async_db["chat_history"]
 pending_signups_collection = async_db["pending_signups"]  # Temporary storage for unverified signups
 cases_collection = async_db["cases"]
 payroll_records_collection = async_db["payroll_records"]
+benefit_plans_collection = async_db["benefit_plans"]
+benefit_enrollments_collection = async_db["benefit_enrollments"]
 
 
 def get_database():
@@ -90,5 +92,16 @@ def create_indexes():
     # Pending signups indexes (with TTL for auto-cleanup after 24 hours)
     sync_db["pending_signups"].create_index("email", unique=True)
     sync_db["pending_signups"].create_index("verification_code_expiry", expireAfterSeconds=86400)  # 24 hours
+    
+    # Benefit plans indexes
+    sync_db["benefit_plans"].create_index([("organization_id", 1), ("benefit_type", 1)])
+    sync_db["benefit_plans"].create_index([("organization_id", 1), ("is_active", 1)])
+    sync_db["benefit_plans"].create_index([("organization_id", 1), ("plan_year_start", 1), ("plan_year_end", 1)])
+    
+    # Benefit enrollments indexes
+    sync_db["benefit_enrollments"].create_index([("organization_id", 1), ("employee_id", 1)])
+    sync_db["benefit_enrollments"].create_index([("organization_id", 1), ("plan_id", 1)])
+    sync_db["benefit_enrollments"].create_index([("organization_id", 1), ("status", 1)])
+    sync_db["benefit_enrollments"].create_index([("organization_id", 1), ("effective_date", -1)])
     
     print("Database indexes created successfully")

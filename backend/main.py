@@ -20,13 +20,17 @@ from models import (
     UserResponse, UserRoleUpdate, VerifyEmail, ResendVerification,
     CandidateStatus, CandidateCreate, CandidateUpdate, CandidateResponse,
     CaseCreate, CaseUpdate, CaseResponse, EmployeeCase, CaseStatus, CaseType,
-    PayrollCreate, PayrollUpdate, PayrollResponse, PayrollStatus
+    PayrollCreate, PayrollUpdate, PayrollResponse, PayrollStatus,
+    BenefitType, EnrollmentStatus,
+    BenefitPlanCreate, BenefitPlanUpdate, BenefitPlanResponse,
+    BenefitEnrollmentCreate, BenefitEnrollmentUpdate, BenefitEnrollmentResponse
 )
 import models
 from database import (
     users_collection, tasks_collection, documents_collection, 
     organizations_collection, close_database, pending_signups_collection,
-    candidates_collection, cases_collection, payroll_records_collection
+    candidates_collection, cases_collection, payroll_records_collection,
+    benefit_plans_collection, benefit_enrollments_collection
 )
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
@@ -2522,6 +2526,638 @@ async def approve_payroll_record(request: Request, payroll_id: str):
     )
     
     return {"message": "Payroll record approved successfully", "id": payroll_id}
+
+
+# ============================================================================
+# BENEFITS API ENDPOINTS
+# ============================================================================
+
+# Benefit Plans Endpoints
+
+@app.get("/benefits/plans", response_model=List[BenefitPlanResponse])
+async def get_all_benefit_plans(
+    request: Request,
+    benefit_type: Optional[str] = None,
+    is_active: Optional[bool] = None
+):
+    """
+    Get all benefit plans for the organization.
+    Optionally filter by benefit type and active status.
+    """
+    organization_id = request.state.organization_id
+    
+    # Build query
+    query = {"organization_id": organization_id}
+    if benefit_type and benefit_type != "All":
+        query["benefit_type"] = benefit_type
+    if is_active is not None:
+        query["is_active"] = is_active
+    
+    plans = await benefit_plans_collection.find(query).sort("created_at", -1).to_list(length=None)
+    
+    return [
+        BenefitPlanResponse(
+            id=str(plan["_id"]),
+            organization_id=plan["organization_id"],
+            plan_name=plan["plan_name"],
+            benefit_type=plan["benefit_type"],
+            provider=plan.get("provider"),
+            description=plan["description"],
+            coverage_level=plan["coverage_level"],
+            coverage_amount=plan.get("coverage_amount"),
+            monthly_premium=plan["monthly_premium"],
+            employer_contribution=plan["employer_contribution"],
+            employee_contribution=plan["employee_contribution"],
+            deductible=plan.get("deductible"),
+            copay=plan.get("copay"),
+            out_of_pocket_max=plan.get("out_of_pocket_max"),
+            eligibility_criteria=plan["eligibility_criteria"],
+            waiting_period_days=plan.get("waiting_period_days", 0),
+            plan_year_start=plan["plan_year_start"],
+            plan_year_end=plan["plan_year_end"],
+            enrollment_start=plan["enrollment_start"],
+            enrollment_end=plan["enrollment_end"],
+            features=plan.get("features", []),
+            exclusions=plan.get("exclusions", []),
+            is_active=plan.get("is_active", True),
+            max_enrollments=plan.get("max_enrollments"),
+            current_enrollments=plan.get("current_enrollments", 0),
+            plan_documents=plan.get("plan_documents", []),
+            notes=plan.get("notes"),
+            created_at=plan["created_at"],
+            updated_at=plan["updated_at"],
+            created_by=plan.get("created_by")
+        )
+        for plan in plans
+    ]
+
+@app.get("/benefits/plans/{plan_id}", response_model=BenefitPlanResponse)
+async def get_benefit_plan(request: Request, plan_id: str):
+    """Get a specific benefit plan by ID."""
+    if not ObjectId.is_valid(plan_id):
+        raise HTTPException(status_code=400, detail="Invalid plan ID")
+    
+    organization_id = request.state.organization_id
+    
+    plan = await benefit_plans_collection.find_one({
+        "_id": ObjectId(plan_id),
+        "organization_id": organization_id
+    })
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Benefit plan not found")
+    
+    return BenefitPlanResponse(
+        id=str(plan["_id"]),
+        organization_id=plan["organization_id"],
+        plan_name=plan["plan_name"],
+        benefit_type=plan["benefit_type"],
+        provider=plan.get("provider"),
+        description=plan["description"],
+        coverage_level=plan["coverage_level"],
+        coverage_amount=plan.get("coverage_amount"),
+        monthly_premium=plan["monthly_premium"],
+        employer_contribution=plan["employer_contribution"],
+        employee_contribution=plan["employee_contribution"],
+        deductible=plan.get("deductible"),
+        copay=plan.get("copay"),
+        out_of_pocket_max=plan.get("out_of_pocket_max"),
+        eligibility_criteria=plan["eligibility_criteria"],
+        waiting_period_days=plan.get("waiting_period_days", 0),
+        plan_year_start=plan["plan_year_start"],
+        plan_year_end=plan["plan_year_end"],
+        enrollment_start=plan["enrollment_start"],
+        enrollment_end=plan["enrollment_end"],
+        features=plan.get("features", []),
+        exclusions=plan.get("exclusions", []),
+        is_active=plan.get("is_active", True),
+        max_enrollments=plan.get("max_enrollments"),
+        current_enrollments=plan.get("current_enrollments", 0),
+        plan_documents=plan.get("plan_documents", []),
+        notes=plan.get("notes"),
+        created_at=plan["created_at"],
+        updated_at=plan["updated_at"],
+        created_by=plan.get("created_by")
+    )
+
+@app.post("/benefits/plans", response_model=BenefitPlanResponse)
+async def create_benefit_plan(request: Request, plan_data: BenefitPlanCreate):
+    """Create a new benefit plan."""
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    new_plan = {
+        "organization_id": organization_id,
+        "plan_name": plan_data.plan_name,
+        "benefit_type": plan_data.benefit_type,
+        "provider": plan_data.provider,
+        "description": plan_data.description,
+        "coverage_level": plan_data.coverage_level,
+        "coverage_amount": plan_data.coverage_amount,
+        "monthly_premium": plan_data.monthly_premium,
+        "employer_contribution": plan_data.employer_contribution,
+        "employee_contribution": plan_data.employee_contribution,
+        "deductible": plan_data.deductible,
+        "copay": plan_data.copay,
+        "out_of_pocket_max": plan_data.out_of_pocket_max,
+        "eligibility_criteria": plan_data.eligibility_criteria,
+        "waiting_period_days": plan_data.waiting_period_days,
+        "plan_year_start": plan_data.plan_year_start,
+        "plan_year_end": plan_data.plan_year_end,
+        "enrollment_start": plan_data.enrollment_start,
+        "enrollment_end": plan_data.enrollment_end,
+        "features": plan_data.features,
+        "exclusions": plan_data.exclusions,
+        "is_active": True,
+        "max_enrollments": plan_data.max_enrollments,
+        "current_enrollments": 0,
+        "plan_documents": [],
+        "notes": plan_data.notes,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "created_by": user_id
+    }
+    
+    result = await benefit_plans_collection.insert_one(new_plan)
+    created_plan = await benefit_plans_collection.find_one({"_id": result.inserted_id})
+    
+    return BenefitPlanResponse(
+        id=str(created_plan["_id"]),
+        organization_id=created_plan["organization_id"],
+        plan_name=created_plan["plan_name"],
+        benefit_type=created_plan["benefit_type"],
+        provider=created_plan.get("provider"),
+        description=created_plan["description"],
+        coverage_level=created_plan["coverage_level"],
+        coverage_amount=created_plan.get("coverage_amount"),
+        monthly_premium=created_plan["monthly_premium"],
+        employer_contribution=created_plan["employer_contribution"],
+        employee_contribution=created_plan["employee_contribution"],
+        deductible=created_plan.get("deductible"),
+        copay=created_plan.get("copay"),
+        out_of_pocket_max=created_plan.get("out_of_pocket_max"),
+        eligibility_criteria=created_plan["eligibility_criteria"],
+        waiting_period_days=created_plan["waiting_period_days"],
+        plan_year_start=created_plan["plan_year_start"],
+        plan_year_end=created_plan["plan_year_end"],
+        enrollment_start=created_plan["enrollment_start"],
+        enrollment_end=created_plan["enrollment_end"],
+        features=created_plan["features"],
+        exclusions=created_plan["exclusions"],
+        is_active=created_plan["is_active"],
+        max_enrollments=created_plan.get("max_enrollments"),
+        current_enrollments=created_plan["current_enrollments"],
+        plan_documents=created_plan["plan_documents"],
+        notes=created_plan.get("notes"),
+        created_at=created_plan["created_at"],
+        updated_at=created_plan["updated_at"],
+        created_by=created_plan.get("created_by")
+    )
+
+@app.patch("/benefits/plans/{plan_id}", response_model=BenefitPlanResponse)
+async def update_benefit_plan(request: Request, plan_id: str, plan_update: BenefitPlanUpdate):
+    """Update a benefit plan."""
+    if not ObjectId.is_valid(plan_id):
+        raise HTTPException(status_code=400, detail="Invalid plan ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify plan exists
+    existing_plan = await benefit_plans_collection.find_one({
+        "_id": ObjectId(plan_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_plan:
+        raise HTTPException(status_code=404, detail="Benefit plan not found")
+    
+    # Build update document
+    update_dict = plan_update.model_dump(exclude_none=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    # Update the plan
+    await benefit_plans_collection.update_one(
+        {"_id": ObjectId(plan_id)},
+        {"$set": update_dict}
+    )
+    
+    updated_plan = await benefit_plans_collection.find_one({"_id": ObjectId(plan_id)})
+    
+    return BenefitPlanResponse(
+        id=str(updated_plan["_id"]),
+        organization_id=updated_plan["organization_id"],
+        plan_name=updated_plan["plan_name"],
+        benefit_type=updated_plan["benefit_type"],
+        provider=updated_plan.get("provider"),
+        description=updated_plan["description"],
+        coverage_level=updated_plan["coverage_level"],
+        coverage_amount=updated_plan.get("coverage_amount"),
+        monthly_premium=updated_plan["monthly_premium"],
+        employer_contribution=updated_plan["employer_contribution"],
+        employee_contribution=updated_plan["employee_contribution"],
+        deductible=updated_plan.get("deductible"),
+        copay=updated_plan.get("copay"),
+        out_of_pocket_max=updated_plan.get("out_of_pocket_max"),
+        eligibility_criteria=updated_plan["eligibility_criteria"],
+        waiting_period_days=updated_plan["waiting_period_days"],
+        plan_year_start=updated_plan["plan_year_start"],
+        plan_year_end=updated_plan["plan_year_end"],
+        enrollment_start=updated_plan["enrollment_start"],
+        enrollment_end=updated_plan["enrollment_end"],
+        features=updated_plan["features"],
+        exclusions=updated_plan["exclusions"],
+        is_active=updated_plan["is_active"],
+        max_enrollments=updated_plan.get("max_enrollments"),
+        current_enrollments=updated_plan["current_enrollments"],
+        plan_documents=updated_plan["plan_documents"],
+        notes=updated_plan.get("notes"),
+        created_at=updated_plan["created_at"],
+        updated_at=updated_plan["updated_at"],
+        created_by=updated_plan.get("created_by")
+    )
+
+@app.delete("/benefits/plans/{plan_id}")
+async def delete_benefit_plan(request: Request, plan_id: str):
+    """Delete a benefit plan. Only plans with no active enrollments can be deleted."""
+    if not ObjectId.is_valid(plan_id):
+        raise HTTPException(status_code=400, detail="Invalid plan ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify plan exists
+    existing_plan = await benefit_plans_collection.find_one({
+        "_id": ObjectId(plan_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_plan:
+        raise HTTPException(status_code=404, detail="Benefit plan not found")
+    
+    # Check for active enrollments
+    active_enrollments = await benefit_enrollments_collection.count_documents({
+        "plan_id": plan_id,
+        "organization_id": organization_id,
+        "status": {"$in": ["Pending", "Active"]}
+    })
+    
+    if active_enrollments > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete plan with {active_enrollments} active enrollment(s)"
+        )
+    
+    # Delete the plan
+    await benefit_plans_collection.delete_one({"_id": ObjectId(plan_id)})
+    
+    return {"message": "Benefit plan deleted successfully", "id": plan_id}
+
+# Benefit Enrollments Endpoints
+
+@app.get("/benefits/enrollments", response_model=List[BenefitEnrollmentResponse])
+async def get_all_enrollments(
+    request: Request,
+    status: Optional[str] = None,
+    employee_id: Optional[str] = None,
+    plan_id: Optional[str] = None
+):
+    """
+    Get all benefit enrollments for the organization.
+    Optionally filter by status, employee, or plan.
+    """
+    organization_id = request.state.organization_id
+    
+    # Build query
+    query = {"organization_id": organization_id}
+    if status and status != "All":
+        query["status"] = status
+    if employee_id:
+        query["employee_id"] = employee_id
+    if plan_id:
+        query["plan_id"] = plan_id
+    
+    enrollments = await benefit_enrollments_collection.find(query).sort("created_at", -1).to_list(length=None)
+    
+    return [
+        BenefitEnrollmentResponse(
+            id=str(enrollment["_id"]),
+            organization_id=enrollment["organization_id"],
+            employee_id=enrollment["employee_id"],
+            employee_name=enrollment["employee_name"],
+            employee_email=enrollment["employee_email"],
+            department=enrollment.get("department"),
+            position=enrollment.get("position"),
+            plan_id=enrollment["plan_id"],
+            plan_name=enrollment["plan_name"],
+            benefit_type=enrollment["benefit_type"],
+            enrollment_date=enrollment["enrollment_date"],
+            effective_date=enrollment["effective_date"],
+            termination_date=enrollment.get("termination_date"),
+            status=enrollment["status"],
+            coverage_level=enrollment["coverage_level"],
+            dependents=enrollment.get("dependents", []),
+            monthly_premium=enrollment["monthly_premium"],
+            employer_contribution=enrollment["employer_contribution"],
+            employee_contribution=enrollment["employee_contribution"],
+            annual_cost=enrollment["annual_cost"],
+            payment_frequency=enrollment.get("payment_frequency", "Monthly"),
+            deduction_start_date=enrollment.get("deduction_start_date"),
+            enrollment_documents=enrollment.get("enrollment_documents", []),
+            approved_by=enrollment.get("approved_by"),
+            approved_at=enrollment.get("approved_at"),
+            declined_reason=enrollment.get("declined_reason"),
+            notes=enrollment.get("notes"),
+            created_at=enrollment["created_at"],
+            updated_at=enrollment["updated_at"],
+            created_by=enrollment.get("created_by")
+        )
+        for enrollment in enrollments
+    ]
+
+@app.get("/benefits/enrollments/{enrollment_id}", response_model=BenefitEnrollmentResponse)
+async def get_enrollment(request: Request, enrollment_id: str):
+    """Get a specific benefit enrollment by ID."""
+    if not ObjectId.is_valid(enrollment_id):
+        raise HTTPException(status_code=400, detail="Invalid enrollment ID")
+    
+    organization_id = request.state.organization_id
+    
+    enrollment = await benefit_enrollments_collection.find_one({
+        "_id": ObjectId(enrollment_id),
+        "organization_id": organization_id
+    })
+    
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Benefit enrollment not found")
+    
+    return BenefitEnrollmentResponse(
+        id=str(enrollment["_id"]),
+        organization_id=enrollment["organization_id"],
+        employee_id=enrollment["employee_id"],
+        employee_name=enrollment["employee_name"],
+        employee_email=enrollment["employee_email"],
+        department=enrollment.get("department"),
+        position=enrollment.get("position"),
+        plan_id=enrollment["plan_id"],
+        plan_name=enrollment["plan_name"],
+        benefit_type=enrollment["benefit_type"],
+        enrollment_date=enrollment["enrollment_date"],
+        effective_date=enrollment["effective_date"],
+        termination_date=enrollment.get("termination_date"),
+        status=enrollment["status"],
+        coverage_level=enrollment["coverage_level"],
+        dependents=enrollment.get("dependents", []),
+        monthly_premium=enrollment["monthly_premium"],
+        employer_contribution=enrollment["employer_contribution"],
+        employee_contribution=enrollment["employee_contribution"],
+        annual_cost=enrollment["annual_cost"],
+        payment_frequency=enrollment.get("payment_frequency", "Monthly"),
+        deduction_start_date=enrollment.get("deduction_start_date"),
+        enrollment_documents=enrollment.get("enrollment_documents", []),
+        approved_by=enrollment.get("approved_by"),
+        approved_at=enrollment.get("approved_at"),
+        declined_reason=enrollment.get("declined_reason"),
+        notes=enrollment.get("notes"),
+        created_at=enrollment["created_at"],
+        updated_at=enrollment["updated_at"],
+        created_by=enrollment.get("created_by")
+    )
+
+@app.post("/benefits/enrollments", response_model=BenefitEnrollmentResponse)
+async def create_enrollment(request: Request, enrollment_data: BenefitEnrollmentCreate):
+    """Create a new benefit enrollment."""
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Get the plan details
+    plan = await benefit_plans_collection.find_one({
+        "_id": ObjectId(enrollment_data.plan_id),
+        "organization_id": organization_id
+    })
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Benefit plan not found")
+    
+    # Check if plan is active
+    if not plan.get("is_active", True):
+        raise HTTPException(status_code=400, detail="Cannot enroll in inactive plan")
+    
+    # Check max enrollments
+    if plan.get("max_enrollments") and plan.get("current_enrollments", 0) >= plan["max_enrollments"]:
+        raise HTTPException(status_code=400, detail="Plan has reached maximum enrollments")
+    
+    # Calculate annual cost
+    annual_cost = plan["monthly_premium"] * 12
+    
+    new_enrollment = {
+        "organization_id": organization_id,
+        "employee_id": enrollment_data.employee_id,
+        "employee_name": enrollment_data.employee_name,
+        "employee_email": enrollment_data.employee_email,
+        "department": enrollment_data.department,
+        "position": enrollment_data.position,
+        "plan_id": enrollment_data.plan_id,
+        "plan_name": plan["plan_name"],
+        "benefit_type": plan["benefit_type"],
+        "enrollment_date": enrollment_data.enrollment_date,
+        "effective_date": enrollment_data.effective_date,
+        "termination_date": None,
+        "status": "Pending",
+        "coverage_level": enrollment_data.coverage_level,
+        "dependents": enrollment_data.dependents,
+        "monthly_premium": plan["monthly_premium"],
+        "employer_contribution": plan["employer_contribution"],
+        "employee_contribution": plan["employee_contribution"],
+        "annual_cost": annual_cost,
+        "payment_frequency": enrollment_data.payment_frequency,
+        "deduction_start_date": enrollment_data.deduction_start_date,
+        "enrollment_documents": [],
+        "approved_by": None,
+        "approved_at": None,
+        "declined_reason": None,
+        "notes": enrollment_data.notes,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "created_by": user_id
+    }
+    
+    result = await benefit_enrollments_collection.insert_one(new_enrollment)
+    
+    # Increment plan enrollment count
+    await benefit_plans_collection.update_one(
+        {"_id": ObjectId(enrollment_data.plan_id)},
+        {"$inc": {"current_enrollments": 1}}
+    )
+    
+    created_enrollment = await benefit_enrollments_collection.find_one({"_id": result.inserted_id})
+    
+    return BenefitEnrollmentResponse(
+        id=str(created_enrollment["_id"]),
+        organization_id=created_enrollment["organization_id"],
+        employee_id=created_enrollment["employee_id"],
+        employee_name=created_enrollment["employee_name"],
+        employee_email=created_enrollment["employee_email"],
+        department=created_enrollment.get("department"),
+        position=created_enrollment.get("position"),
+        plan_id=created_enrollment["plan_id"],
+        plan_name=created_enrollment["plan_name"],
+        benefit_type=created_enrollment["benefit_type"],
+        enrollment_date=created_enrollment["enrollment_date"],
+        effective_date=created_enrollment["effective_date"],
+        termination_date=created_enrollment.get("termination_date"),
+        status=created_enrollment["status"],
+        coverage_level=created_enrollment["coverage_level"],
+        dependents=created_enrollment["dependents"],
+        monthly_premium=created_enrollment["monthly_premium"],
+        employer_contribution=created_enrollment["employer_contribution"],
+        employee_contribution=created_enrollment["employee_contribution"],
+        annual_cost=created_enrollment["annual_cost"],
+        payment_frequency=created_enrollment["payment_frequency"],
+        deduction_start_date=created_enrollment.get("deduction_start_date"),
+        enrollment_documents=created_enrollment["enrollment_documents"],
+        approved_by=created_enrollment.get("approved_by"),
+        approved_at=created_enrollment.get("approved_at"),
+        declined_reason=created_enrollment.get("declined_reason"),
+        notes=created_enrollment.get("notes"),
+        created_at=created_enrollment["created_at"],
+        updated_at=created_enrollment["updated_at"],
+        created_by=created_enrollment.get("created_by")
+    )
+
+@app.patch("/benefits/enrollments/{enrollment_id}", response_model=BenefitEnrollmentResponse)
+async def update_enrollment(request: Request, enrollment_id: str, enrollment_update: BenefitEnrollmentUpdate):
+    """Update a benefit enrollment."""
+    if not ObjectId.is_valid(enrollment_id):
+        raise HTTPException(status_code=400, detail="Invalid enrollment ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify enrollment exists
+    existing_enrollment = await benefit_enrollments_collection.find_one({
+        "_id": ObjectId(enrollment_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_enrollment:
+        raise HTTPException(status_code=404, detail="Benefit enrollment not found")
+    
+    # Build update document
+    update_dict = enrollment_update.model_dump(exclude_none=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    # Update the enrollment
+    await benefit_enrollments_collection.update_one(
+        {"_id": ObjectId(enrollment_id)},
+        {"$set": update_dict}
+    )
+    
+    updated_enrollment = await benefit_enrollments_collection.find_one({"_id": ObjectId(enrollment_id)})
+    
+    return BenefitEnrollmentResponse(
+        id=str(updated_enrollment["_id"]),
+        organization_id=updated_enrollment["organization_id"],
+        employee_id=updated_enrollment["employee_id"],
+        employee_name=updated_enrollment["employee_name"],
+        employee_email=updated_enrollment["employee_email"],
+        department=updated_enrollment.get("department"),
+        position=updated_enrollment.get("position"),
+        plan_id=updated_enrollment["plan_id"],
+        plan_name=updated_enrollment["plan_name"],
+        benefit_type=updated_enrollment["benefit_type"],
+        enrollment_date=updated_enrollment["enrollment_date"],
+        effective_date=updated_enrollment["effective_date"],
+        termination_date=updated_enrollment.get("termination_date"),
+        status=updated_enrollment["status"],
+        coverage_level=updated_enrollment["coverage_level"],
+        dependents=updated_enrollment["dependents"],
+        monthly_premium=updated_enrollment["monthly_premium"],
+        employer_contribution=updated_enrollment["employer_contribution"],
+        employee_contribution=updated_enrollment["employee_contribution"],
+        annual_cost=updated_enrollment["annual_cost"],
+        payment_frequency=updated_enrollment["payment_frequency"],
+        deduction_start_date=updated_enrollment.get("deduction_start_date"),
+        enrollment_documents=updated_enrollment["enrollment_documents"],
+        approved_by=updated_enrollment.get("approved_by"),
+        approved_at=updated_enrollment.get("approved_at"),
+        declined_reason=updated_enrollment.get("declined_reason"),
+        notes=updated_enrollment.get("notes"),
+        created_at=updated_enrollment["created_at"],
+        updated_at=updated_enrollment["updated_at"],
+        created_by=updated_enrollment.get("created_by")
+    )
+
+@app.patch("/benefits/enrollments/{enrollment_id}/approve")
+async def approve_enrollment(request: Request, enrollment_id: str):
+    """Approve a benefit enrollment."""
+    if not ObjectId.is_valid(enrollment_id):
+        raise HTTPException(status_code=400, detail="Invalid enrollment ID")
+    
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Verify enrollment exists
+    existing_enrollment = await benefit_enrollments_collection.find_one({
+        "_id": ObjectId(enrollment_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_enrollment:
+        raise HTTPException(status_code=404, detail="Benefit enrollment not found")
+    
+    # Update status to Active
+    await benefit_enrollments_collection.update_one(
+        {"_id": ObjectId(enrollment_id)},
+        {"$set": {
+            "status": "Active",
+            "approved_by": user_id,
+            "approved_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    return {"message": "Benefit enrollment approved successfully", "id": enrollment_id}
+
+@app.delete("/benefits/enrollments/{enrollment_id}")
+async def delete_enrollment(request: Request, enrollment_id: str):
+    """Delete a benefit enrollment. Only pending enrollments can be deleted."""
+    if not ObjectId.is_valid(enrollment_id):
+        raise HTTPException(status_code=400, detail="Invalid enrollment ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify enrollment exists
+    existing_enrollment = await benefit_enrollments_collection.find_one({
+        "_id": ObjectId(enrollment_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_enrollment:
+        raise HTTPException(status_code=404, detail="Benefit enrollment not found")
+    
+    # Only allow deletion of pending enrollments
+    if existing_enrollment.get("status") not in ["Pending", "Declined"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending or declined enrollments can be deleted"
+        )
+    
+    # Decrement plan enrollment count
+    await benefit_plans_collection.update_one(
+        {"_id": ObjectId(existing_enrollment["plan_id"])},
+        {"$inc": {"current_enrollments": -1}}
+    )
+    
+    # Delete the enrollment
+    await benefit_enrollments_collection.delete_one({"_id": ObjectId(enrollment_id)})
+    
+    return {"message": "Benefit enrollment deleted successfully", "id": enrollment_id}
 
 
 
