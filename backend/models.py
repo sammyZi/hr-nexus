@@ -651,3 +651,279 @@ class PayrollResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# Benefits Models
+class BenefitType(str, enum.Enum):
+    HealthInsurance = "Health Insurance"
+    DentalInsurance = "Dental Insurance"
+    VisionInsurance = "Vision Insurance"
+    LifeInsurance = "Life Insurance"
+    RetirementPlan = "Retirement Plan"
+    PaidTimeOff = "Paid Time Off"
+    Wellness = "Wellness Program"
+    EducationAssistance = "Education Assistance"
+    ChildCare = "Child Care"
+    Other = "Other"
+
+class EnrollmentStatus(str, enum.Enum):
+    Pending = "Pending"
+    Active = "Active"
+    Declined = "Declined"
+    Terminated = "Terminated"
+    Expired = "Expired"
+
+class BenefitPlan(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organization_id: str
+    
+    # Plan Information
+    plan_name: str
+    benefit_type: BenefitType
+    provider: Optional[str] = None
+    description: str
+    
+    # Coverage Details
+    coverage_level: str  # Individual, Family, Employee+Spouse, etc.
+    coverage_amount: Optional[str] = None  # e.g., "$50,000", "100%", etc.
+    
+    # Cost Information
+    monthly_premium: float
+    employer_contribution: float  # Amount or percentage
+    employee_contribution: float  # Amount or percentage
+    deductible: Optional[float] = None
+    copay: Optional[float] = None
+    out_of_pocket_max: Optional[float] = None
+    
+    # Eligibility
+    eligibility_criteria: str  # e.g., "Full-time employees"
+    waiting_period_days: int = 0  # Days before eligible
+    
+    # Plan Details
+    plan_year_start: datetime
+    plan_year_end: datetime
+    enrollment_start: datetime
+    enrollment_end: datetime
+    
+    # Features
+    features: List[str] = Field(default_factory=list)
+    exclusions: List[str] = Field(default_factory=list)
+    
+    # Status
+    is_active: bool = True
+    max_enrollments: Optional[int] = None  # Max number of employees
+    current_enrollments: int = 0
+    
+    # Documents
+    plan_documents: List[str] = Field(default_factory=list)  # URLs to documents
+    
+    # Metadata
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class BenefitEnrollment(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organization_id: str
+    
+    # Employee Information
+    employee_id: str
+    employee_name: str
+    employee_email: EmailStr
+    department: Optional[str] = None
+    position: Optional[str] = None
+    
+    # Benefit Plan Reference
+    plan_id: str
+    plan_name: str
+    benefit_type: BenefitType
+    
+    # Enrollment Details
+    enrollment_date: datetime
+    effective_date: datetime
+    termination_date: Optional[datetime] = None
+    status: EnrollmentStatus = EnrollmentStatus.Pending
+    
+    # Coverage
+    coverage_level: str
+    dependents: List[Dict] = Field(default_factory=list)  # List of dependent info
+    
+    # Cost Breakdown
+    monthly_premium: float
+    employer_contribution: float
+    employee_contribution: float
+    annual_cost: float  # Total annual cost
+    
+    # Payment
+    payment_frequency: str = "Monthly"  # Monthly, Bi-weekly, etc.
+    deduction_start_date: Optional[datetime] = None
+    
+    # Documents
+    enrollment_documents: List[str] = Field(default_factory=list)
+    
+    # Approval
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    declined_reason: Optional[str] = None
+    
+    # Metadata
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+# Benefits API Models
+class BenefitPlanCreate(BaseModel):
+    plan_name: str
+    benefit_type: BenefitType
+    provider: Optional[str] = None
+    description: str
+    coverage_level: str
+    coverage_amount: Optional[str] = None
+    monthly_premium: float
+    employer_contribution: float
+    employee_contribution: float
+    deductible: Optional[float] = None
+    copay: Optional[float] = None
+    out_of_pocket_max: Optional[float] = None
+    eligibility_criteria: str
+    waiting_period_days: int = 0
+    plan_year_start: datetime
+    plan_year_end: datetime
+    enrollment_start: datetime
+    enrollment_end: datetime
+    features: List[str] = Field(default_factory=list)
+    exclusions: List[str] = Field(default_factory=list)
+    max_enrollments: Optional[int] = None
+    notes: Optional[str] = None
+
+class BenefitPlanUpdate(BaseModel):
+    plan_name: Optional[str] = None
+    provider: Optional[str] = None
+    description: Optional[str] = None
+    coverage_level: Optional[str] = None
+    coverage_amount: Optional[str] = None
+    monthly_premium: Optional[float] = None
+    employer_contribution: Optional[float] = None
+    employee_contribution: Optional[float] = None
+    deductible: Optional[float] = None
+    copay: Optional[float] = None
+    out_of_pocket_max: Optional[float] = None
+    eligibility_criteria: Optional[str] = None
+    waiting_period_days: Optional[int] = None
+    enrollment_start: Optional[datetime] = None
+    enrollment_end: Optional[datetime] = None
+    features: Optional[List[str]] = None
+    exclusions: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    max_enrollments: Optional[int] = None
+    notes: Optional[str] = None
+
+class BenefitPlanResponse(BaseModel):
+    id: str
+    organization_id: str
+    plan_name: str
+    benefit_type: BenefitType
+    provider: Optional[str] = None
+    description: str
+    coverage_level: str
+    coverage_amount: Optional[str] = None
+    monthly_premium: float
+    employer_contribution: float
+    employee_contribution: float
+    deductible: Optional[float] = None
+    copay: Optional[float] = None
+    out_of_pocket_max: Optional[float] = None
+    eligibility_criteria: str
+    waiting_period_days: int
+    plan_year_start: datetime
+    plan_year_end: datetime
+    enrollment_start: datetime
+    enrollment_end: datetime
+    features: List[str]
+    exclusions: List[str]
+    is_active: bool
+    max_enrollments: Optional[int] = None
+    current_enrollments: int
+    plan_documents: List[str]
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class BenefitEnrollmentCreate(BaseModel):
+    employee_id: str
+    employee_name: str
+    employee_email: EmailStr
+    department: Optional[str] = None
+    position: Optional[str] = None
+    plan_id: str
+    enrollment_date: datetime
+    effective_date: datetime
+    coverage_level: str
+    dependents: List[Dict] = Field(default_factory=list)
+    payment_frequency: str = "Monthly"
+    deduction_start_date: Optional[datetime] = None
+    notes: Optional[str] = None
+
+class BenefitEnrollmentUpdate(BaseModel):
+    employee_name: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    effective_date: Optional[datetime] = None
+    termination_date: Optional[datetime] = None
+    status: Optional[EnrollmentStatus] = None
+    coverage_level: Optional[str] = None
+    dependents: Optional[List[Dict]] = None
+    payment_frequency: Optional[str] = None
+    deduction_start_date: Optional[datetime] = None
+    declined_reason: Optional[str] = None
+    notes: Optional[str] = None
+
+class BenefitEnrollmentResponse(BaseModel):
+    id: str
+    organization_id: str
+    employee_id: str
+    employee_name: str
+    employee_email: EmailStr
+    department: Optional[str] = None
+    position: Optional[str] = None
+    plan_id: str
+    plan_name: str
+    benefit_type: BenefitType
+    enrollment_date: datetime
+    effective_date: datetime
+    termination_date: Optional[datetime] = None
+    status: EnrollmentStatus
+    coverage_level: str
+    dependents: List[Dict]
+    monthly_premium: float
+    employer_contribution: float
+    employee_contribution: float
+    annual_cost: float
+    payment_frequency: str
+    deduction_start_date: Optional[datetime] = None
+    enrollment_documents: List[str]
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    declined_reason: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
