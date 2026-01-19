@@ -703,4 +703,199 @@ export const payrollApi = {
     },
 };
 
+// Benefits API
+export interface BenefitPlan {
+    id: string;
+    organization_id: string;
+    plan_name: string;
+    benefit_type: string;
+    provider?: string;
+    description: string;
+    coverage_level: string;
+    coverage_amount?: string;
+    monthly_premium: number;
+    employer_contribution: number;
+    employee_contribution: number;
+    deductible?: number;
+    copay?: number;
+    out_of_pocket_max?: number;
+    eligibility_criteria: string;
+    waiting_period_days: number;
+    plan_year_start: string;
+    plan_year_end: string;
+    enrollment_start: string;
+    enrollment_end: string;
+    features: string[];
+    exclusions: string[];
+    is_active: boolean;
+    max_enrollments?: number;
+    current_enrollments: number;
+    plan_documents: string[];
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    created_by?: string;
+}
+
+export interface BenefitPlanCreate {
+    plan_name: string;
+    benefit_type: string;
+    provider?: string;
+    description: string;
+    coverage_level: string;
+    coverage_amount?: string;
+    monthly_premium: number;
+    employer_contribution: number;
+    employee_contribution: number;
+    deductible?: number;
+    copay?: number;
+    out_of_pocket_max?: number;
+    eligibility_criteria: string;
+    waiting_period_days?: number;
+    plan_year_start: string;
+    plan_year_end: string;
+    enrollment_start: string;
+    enrollment_end: string;
+    features?: string[];
+    exclusions?: string[];
+    max_enrollments?: number;
+    notes?: string;
+}
+
+export interface BenefitEnrollment {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    employee_name: string;
+    employee_email: string;
+    department?: string;
+    position?: string;
+    plan_id: string;
+    plan_name: string;
+    benefit_type: string;
+    enrollment_date: string;
+    effective_date: string;
+    termination_date?: string;
+    status: string;
+    coverage_level: string;
+    dependents: any[];
+    monthly_premium: number;
+    employer_contribution: number;
+    employee_contribution: number;
+    annual_cost: number;
+    payment_frequency: string;
+    deduction_start_date?: string;
+    enrollment_documents: string[];
+    approved_by?: string;
+    approved_at?: string;
+    declined_reason?: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    created_by?: string;
+}
+
+export interface BenefitEnrollmentCreate {
+    employee_id: string;
+    employee_name: string;
+    employee_email: string;
+    department?: string;
+    position?: string;
+    plan_id: string;
+    enrollment_date: string;
+    effective_date: string;
+    coverage_level: string;
+    dependents?: any[];
+    payment_frequency?: string;
+    deduction_start_date?: string;
+    notes?: string;
+}
+
+export const benefitsApi = {
+    // Benefit Plans
+    getAllPlans: async (filters?: { benefit_type?: string; is_active?: boolean }): Promise<BenefitPlan[]> => {
+        let url = '/benefits/plans';
+        const params = new URLSearchParams();
+
+        if (filters?.benefit_type && filters.benefit_type !== 'All') {
+            params.append('benefit_type', filters.benefit_type);
+        }
+        if (filters?.is_active !== undefined) {
+            params.append('is_active', filters.is_active.toString());
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        const response = await api.get(url);
+        return response.data;
+    },
+
+    getPlanById: async (id: string): Promise<BenefitPlan> => {
+        const response = await api.get(`/benefits/plans/${id}`);
+        return response.data;
+    },
+
+    createPlan: async (data: BenefitPlanCreate): Promise<BenefitPlan> => {
+        const response = await api.post('/benefits/plans', data);
+        return response.data;
+    },
+
+    updatePlan: async (id: string, data: Partial<BenefitPlanCreate>): Promise<BenefitPlan> => {
+        const response = await api.patch(`/benefits/plans/${id}`, data);
+        return response.data;
+    },
+
+    deletePlan: async (id: string): Promise<void> => {
+        await api.delete(`/benefits/plans/${id}`);
+    },
+
+    // Benefit Enrollments
+    getAllEnrollments: async (filters?: { status?: string; employee_id?: string; plan_id?: string }): Promise<BenefitEnrollment[]> => {
+        let url = '/benefits/enrollments';
+        const params = new URLSearchParams();
+
+        if (filters?.status && filters.status !== 'All') {
+            params.append('status', filters.status);
+        }
+        if (filters?.employee_id) {
+            params.append('employee_id', filters.employee_id);
+        }
+        if (filters?.plan_id) {
+            params.append('plan_id', filters.plan_id);
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        const response = await api.get(url);
+        return response.data;
+    },
+
+    getEnrollmentById: async (id: string): Promise<BenefitEnrollment> => {
+        const response = await api.get(`/benefits/enrollments/${id}`);
+        return response.data;
+    },
+
+    createEnrollment: async (data: BenefitEnrollmentCreate): Promise<BenefitEnrollment> => {
+        const response = await api.post('/benefits/enrollments', data);
+        return response.data;
+    },
+
+    updateEnrollment: async (id: string, data: Partial<BenefitEnrollmentCreate>): Promise<BenefitEnrollment> => {
+        const response = await api.patch(`/benefits/enrollments/${id}`, data);
+        return response.data;
+    },
+
+    approveEnrollment: async (id: string): Promise<void> => {
+        await api.patch(`/benefits/enrollments/${id}/approve`);
+    },
+
+    deleteEnrollment: async (id: string): Promise<void> => {
+        await api.delete(`/benefits/enrollments/${id}`);
+    },
+};
+
 export default api;

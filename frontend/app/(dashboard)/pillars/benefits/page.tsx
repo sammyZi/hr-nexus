@@ -1,13 +1,5 @@
-import { Heart } from "lucide-react";
-import { PillarPage } from "@/components/PillarPage";
+import BenefitsPage from "@/components/Benefits/BenefitsPage";
 
-export default function BenefitsPage() {
-    return (
-        <PillarPage
-            pillarName="Benefits"
-            pillarCategory="Benefits"
-            pillarDescription="Manage employee benefits, insurance, and wellness programs"
-            pillarIcon={<Heart size={28} />}
-        />
-    );
+export default function Benefits() {
+    return <BenefitsPage />;
 }
