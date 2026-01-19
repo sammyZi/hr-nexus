@@ -507,3 +507,147 @@ class CaseResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# Payroll Models
+class PayrollStatus(str, enum.Enum):
+    Draft = "Draft"
+    Pending = "Pending"
+    Approved = "Approved"
+    Processing = "Processing"
+    Paid = "Paid"
+    Failed = "Failed"
+
+class PayrollRecord(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organization_id: str
+    
+    # Employee Information
+    employee_id: str
+    employee_name: str
+    employee_email: EmailStr
+    department: Optional[str] = None
+    position: Optional[str] = None
+    
+    # Pay Period
+    pay_period_start: datetime
+    pay_period_end: datetime
+    payment_date: datetime
+    
+    # Compensation
+    base_salary: float
+    overtime_hours: float = 0.0
+    overtime_rate: float = 0.0
+    overtime_pay: float = 0.0
+    bonus: float = 0.0
+    commission: float = 0.0
+    
+    # Deductions
+    tax_deduction: float = 0.0
+    health_insurance: float = 0.0
+    retirement_contribution: float = 0.0
+    other_deductions: float = 0.0
+    
+    # Totals
+    gross_pay: float
+    total_deductions: float
+    net_pay: float
+    
+    # Status & Metadata
+    status: PayrollStatus = PayrollStatus.Draft
+    payment_method: str = "Direct Deposit"  # Direct Deposit, Check, Cash
+    bank_account_last4: Optional[str] = None
+    notes: Optional[str] = None
+    
+    # Approval
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    processed_by: Optional[str] = None
+    processed_at: Optional[datetime] = None
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+# Payroll API Models
+class PayrollCreate(BaseModel):
+    employee_id: str
+    employee_name: str
+    employee_email: EmailStr
+    department: Optional[str] = None
+    position: Optional[str] = None
+    pay_period_start: datetime
+    pay_period_end: datetime
+    payment_date: datetime
+    base_salary: float
+    overtime_hours: float = 0.0
+    overtime_rate: float = 0.0
+    bonus: float = 0.0
+    commission: float = 0.0
+    tax_deduction: float = 0.0
+    health_insurance: float = 0.0
+    retirement_contribution: float = 0.0
+    other_deductions: float = 0.0
+    payment_method: str = "Direct Deposit"
+    bank_account_last4: Optional[str] = None
+    notes: Optional[str] = None
+
+class PayrollUpdate(BaseModel):
+    employee_name: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    payment_date: Optional[datetime] = None
+    base_salary: Optional[float] = None
+    overtime_hours: Optional[float] = None
+    overtime_rate: Optional[float] = None
+    bonus: Optional[float] = None
+    commission: Optional[float] = None
+    tax_deduction: Optional[float] = None
+    health_insurance: Optional[float] = None
+    retirement_contribution: Optional[float] = None
+    other_deductions: Optional[float] = None
+    status: Optional[PayrollStatus] = None
+    payment_method: Optional[str] = None
+    bank_account_last4: Optional[str] = None
+    notes: Optional[str] = None
+
+class PayrollResponse(BaseModel):
+    id: str
+    organization_id: str
+    employee_id: str
+    employee_name: str
+    employee_email: EmailStr
+    department: Optional[str] = None
+    position: Optional[str] = None
+    pay_period_start: datetime
+    pay_period_end: datetime
+    payment_date: datetime
+    base_salary: float
+    overtime_hours: float
+    overtime_rate: float
+    overtime_pay: float
+    bonus: float
+    commission: float
+    tax_deduction: float
+    health_insurance: float
+    retirement_contribution: float
+    other_deductions: float
+    gross_pay: float
+    total_deductions: float
+    net_pay: float
+    status: PayrollStatus
+    payment_method: str
+    bank_account_last4: Optional[str] = None
+    notes: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+    
+    class Config:
+        from_attributes = True

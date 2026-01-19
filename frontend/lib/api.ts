@@ -580,4 +580,127 @@ export const caseApi = {
     },
 };
 
+// Payroll API
+export interface PayrollRecord {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    employee_name: string;
+    employee_email: string;
+    department?: string;
+    position?: string;
+    pay_period_start: string;
+    pay_period_end: string;
+    payment_date: string;
+    base_salary: number;
+    overtime_hours: number;
+    overtime_rate: number;
+    overtime_pay: number;
+    bonus: number;
+    commission: number;
+    tax_deduction: number;
+    health_insurance: number;
+    retirement_contribution: number;
+    other_deductions: number;
+    gross_pay: number;
+    total_deductions: number;
+    net_pay: number;
+    status: string;
+    payment_method: string;
+    bank_account_last4?: string;
+    notes?: string;
+    approved_by?: string;
+    approved_at?: string;
+    created_at: string;
+    updated_at: string;
+    created_by?: string;
+}
+
+export interface PayrollCreate {
+    employee_id: string;
+    employee_name: string;
+    employee_email: string;
+    department?: string;
+    position?: string;
+    pay_period_start: string;
+    pay_period_end: string;
+    payment_date: string;
+    base_salary: number;
+    overtime_hours?: number;
+    overtime_rate?: number;
+    bonus?: number;
+    commission?: number;
+    tax_deduction?: number;
+    health_insurance?: number;
+    retirement_contribution?: number;
+    other_deductions?: number;
+    payment_method?: string;
+    bank_account_last4?: string;
+    notes?: string;
+}
+
+export interface PayrollUpdate {
+    employee_name?: string;
+    department?: string;
+    position?: string;
+    payment_date?: string;
+    base_salary?: number;
+    overtime_hours?: number;
+    overtime_rate?: number;
+    bonus?: number;
+    commission?: number;
+    tax_deduction?: number;
+    health_insurance?: number;
+    retirement_contribution?: number;
+    other_deductions?: number;
+    status?: string;
+    payment_method?: string;
+    bank_account_last4?: string;
+    notes?: string;
+}
+
+export const payrollApi = {
+    getAll: async (filters?: { status?: string; employee_id?: string }): Promise<PayrollRecord[]> => {
+        let url = '/payroll';
+        const params = new URLSearchParams();
+
+        if (filters?.status && filters.status !== 'All') {
+            params.append('status', filters.status);
+        }
+        if (filters?.employee_id) {
+            params.append('employee_id', filters.employee_id);
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        const response = await api.get(url);
+        return response.data;
+    },
+
+    getById: async (id: string): Promise<PayrollRecord> => {
+        const response = await api.get(`/payroll/${id}`);
+        return response.data;
+    },
+
+    create: async (data: PayrollCreate): Promise<PayrollRecord> => {
+        const response = await api.post('/payroll', data);
+        return response.data;
+    },
+
+    update: async (id: string, data: PayrollUpdate): Promise<PayrollRecord> => {
+        const response = await api.patch(`/payroll/${id}`, data);
+        return response.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+        await api.delete(`/payroll/${id}`);
+    },
+
+    approve: async (id: string): Promise<void> => {
+        await api.patch(`/payroll/${id}/approve`);
+    },
+};
+
 export default api;
