@@ -19,13 +19,14 @@ from models import (
     InvitationCreate, InvitationResponse, InvitationAccept,
     UserResponse, UserRoleUpdate, VerifyEmail, ResendVerification,
     CandidateStatus, CandidateCreate, CandidateUpdate, CandidateResponse,
-    CaseCreate, CaseUpdate, CaseResponse, EmployeeCase, CaseStatus, CaseType
+    CaseCreate, CaseUpdate, CaseResponse, EmployeeCase, CaseStatus, CaseType,
+    PayrollCreate, PayrollUpdate, PayrollResponse, PayrollStatus
 )
 import models
 from database import (
     users_collection, tasks_collection, documents_collection, 
     organizations_collection, close_database, pending_signups_collection,
-    candidates_collection, cases_collection
+    candidates_collection, cases_collection, payroll_records_collection
 )
 from email_utils import send_verification_email
 from rag_utils import process_document, get_answer_with_fallback
@@ -2103,6 +2104,427 @@ async def update_case(request: Request, case_id: str, case_update: CaseUpdate):
         created_at=updated_case["created_at"],
         updated_at=updated_case["updated_at"]
     )
+
+
+# ============================================================================
+# PAYROLL ENDPOINTS
+# ============================================================================
+
+@app.get("/payroll", response_model=List[PayrollResponse])
+async def get_payroll_records(
+    request: Request,
+    status: Optional[str] = Query(None),
+    employee_id: Optional[str] = Query(None)
+):
+    """
+    Get all payroll records for the organization.
+    Optionally filter by status or employee_id.
+    
+    Args:
+        request: Request object with organization context
+        status: Optional status filter
+        employee_id: Optional employee ID filter
+    """
+    organization_id = request.state.organization_id
+    
+    # Build query filter
+    query_filter = {"organization_id": organization_id}
+    
+    if status and status != "All":
+        query_filter["status"] = status
+    
+    if employee_id:
+        query_filter["employee_id"] = employee_id
+    
+    # Fetch payroll records
+    payroll_records = await payroll_records_collection.find(query_filter).sort("payment_date", -1).to_list(length=None)
+    
+    return [
+        PayrollResponse(
+            id=str(record["_id"]),
+            organization_id=record["organization_id"],
+            employee_id=record["employee_id"],
+            employee_name=record["employee_name"],
+            employee_email=record["employee_email"],
+            department=record.get("department"),
+            position=record.get("position"),
+            pay_period_start=record["pay_period_start"],
+            pay_period_end=record["pay_period_end"],
+            payment_date=record["payment_date"],
+            base_salary=record["base_salary"],
+            overtime_hours=record.get("overtime_hours", 0.0),
+            overtime_rate=record.get("overtime_rate", 0.0),
+            overtime_pay=record.get("overtime_pay", 0.0),
+            bonus=record.get("bonus", 0.0),
+            commission=record.get("commission", 0.0),
+            tax_deduction=record.get("tax_deduction", 0.0),
+            health_insurance=record.get("health_insurance", 0.0),
+            retirement_contribution=record.get("retirement_contribution", 0.0),
+            other_deductions=record.get("other_deductions", 0.0),
+            gross_pay=record["gross_pay"],
+            total_deductions=record["total_deductions"],
+            net_pay=record["net_pay"],
+            status=record.get("status", "Draft"),
+            payment_method=record.get("payment_method", "Direct Deposit"),
+            bank_account_last4=record.get("bank_account_last4"),
+            notes=record.get("notes"),
+            approved_by=record.get("approved_by"),
+            approved_at=record.get("approved_at"),
+            created_at=record["created_at"],
+            updated_at=record["updated_at"],
+            created_by=record.get("created_by")
+        )
+        for record in payroll_records
+    ]
+
+@app.get("/payroll/{payroll_id}", response_model=PayrollResponse)
+async def get_payroll_record(request: Request, payroll_id: str):
+    """
+    Get a specific payroll record by ID.
+    Verifies the record belongs to the user's organization.
+    
+    Args:
+        request: Request object with organization context
+        payroll_id: Payroll record ID
+    """
+    if not ObjectId.is_valid(payroll_id):
+        raise HTTPException(status_code=400, detail="Invalid payroll ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Fetch payroll record
+    record = await payroll_records_collection.find_one({
+        "_id": ObjectId(payroll_id),
+        "organization_id": organization_id
+    })
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="Payroll record not found")
+    
+    return PayrollResponse(
+        id=str(record["_id"]),
+        organization_id=record["organization_id"],
+        employee_id=record["employee_id"],
+        employee_name=record["employee_name"],
+        employee_email=record["employee_email"],
+        department=record.get("department"),
+        position=record.get("position"),
+        pay_period_start=record["pay_period_start"],
+        pay_period_end=record["pay_period_end"],
+        payment_date=record["payment_date"],
+        base_salary=record["base_salary"],
+        overtime_hours=record.get("overtime_hours", 0.0),
+        overtime_rate=record.get("overtime_rate", 0.0),
+        overtime_pay=record.get("overtime_pay", 0.0),
+        bonus=record.get("bonus", 0.0),
+        commission=record.get("commission", 0.0),
+        tax_deduction=record.get("tax_deduction", 0.0),
+        health_insurance=record.get("health_insurance", 0.0),
+        retirement_contribution=record.get("retirement_contribution", 0.0),
+        other_deductions=record.get("other_deductions", 0.0),
+        gross_pay=record["gross_pay"],
+        total_deductions=record["total_deductions"],
+        net_pay=record["net_pay"],
+        status=record.get("status", "Draft"),
+        payment_method=record.get("payment_method", "Direct Deposit"),
+        bank_account_last4=record.get("bank_account_last4"),
+        notes=record.get("notes"),
+        approved_by=record.get("approved_by"),
+        approved_at=record.get("approved_at"),
+        created_at=record["created_at"],
+        updated_at=record["updated_at"],
+        created_by=record.get("created_by")
+    )
+
+@app.post("/payroll", response_model=PayrollResponse)
+async def create_payroll_record(request: Request, payroll_data: PayrollCreate):
+    """
+    Create a new payroll record.
+    Automatically calculates overtime pay, gross pay, total deductions, and net pay.
+    
+    Args:
+        request: Request object with organization context
+        payroll_data: Payroll record data
+    """
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Calculate overtime pay
+    overtime_pay = payroll_data.overtime_hours * payroll_data.overtime_rate
+    
+    # Calculate gross pay
+    gross_pay = (
+        payroll_data.base_salary +
+        overtime_pay +
+        payroll_data.bonus +
+        payroll_data.commission
+    )
+    
+    # Calculate total deductions
+    total_deductions = (
+        payroll_data.tax_deduction +
+        payroll_data.health_insurance +
+        payroll_data.retirement_contribution +
+        payroll_data.other_deductions
+    )
+    
+    # Calculate net pay
+    net_pay = gross_pay - total_deductions
+    
+    # Create payroll record
+    new_record = {
+        "organization_id": organization_id,
+        "employee_id": payroll_data.employee_id,
+        "employee_name": payroll_data.employee_name,
+        "employee_email": payroll_data.employee_email,
+        "department": payroll_data.department,
+        "position": payroll_data.position,
+        "pay_period_start": payroll_data.pay_period_start,
+        "pay_period_end": payroll_data.pay_period_end,
+        "payment_date": payroll_data.payment_date,
+        "base_salary": payroll_data.base_salary,
+        "overtime_hours": payroll_data.overtime_hours,
+        "overtime_rate": payroll_data.overtime_rate,
+        "overtime_pay": overtime_pay,
+        "bonus": payroll_data.bonus,
+        "commission": payroll_data.commission,
+        "tax_deduction": payroll_data.tax_deduction,
+        "health_insurance": payroll_data.health_insurance,
+        "retirement_contribution": payroll_data.retirement_contribution,
+        "other_deductions": payroll_data.other_deductions,
+        "gross_pay": gross_pay,
+        "total_deductions": total_deductions,
+        "net_pay": net_pay,
+        "status": "Draft",
+        "payment_method": payroll_data.payment_method,
+        "bank_account_last4": payroll_data.bank_account_last4,
+        "notes": payroll_data.notes,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "created_by": user_id
+    }
+    
+    result = await payroll_records_collection.insert_one(new_record)
+    created_record = await payroll_records_collection.find_one({"_id": result.inserted_id})
+    
+    return PayrollResponse(
+        id=str(created_record["_id"]),
+        organization_id=created_record["organization_id"],
+        employee_id=created_record["employee_id"],
+        employee_name=created_record["employee_name"],
+        employee_email=created_record["employee_email"],
+        department=created_record.get("department"),
+        position=created_record.get("position"),
+        pay_period_start=created_record["pay_period_start"],
+        pay_period_end=created_record["pay_period_end"],
+        payment_date=created_record["payment_date"],
+        base_salary=created_record["base_salary"],
+        overtime_hours=created_record["overtime_hours"],
+        overtime_rate=created_record["overtime_rate"],
+        overtime_pay=created_record["overtime_pay"],
+        bonus=created_record["bonus"],
+        commission=created_record["commission"],
+        tax_deduction=created_record["tax_deduction"],
+        health_insurance=created_record["health_insurance"],
+        retirement_contribution=created_record["retirement_contribution"],
+        other_deductions=created_record["other_deductions"],
+        gross_pay=created_record["gross_pay"],
+        total_deductions=created_record["total_deductions"],
+        net_pay=created_record["net_pay"],
+        status=created_record["status"],
+        payment_method=created_record["payment_method"],
+        bank_account_last4=created_record.get("bank_account_last4"),
+        notes=created_record.get("notes"),
+        approved_by=created_record.get("approved_by"),
+        approved_at=created_record.get("approved_at"),
+        created_at=created_record["created_at"],
+        updated_at=created_record["updated_at"],
+        created_by=created_record.get("created_by")
+    )
+
+@app.patch("/payroll/{payroll_id}", response_model=PayrollResponse)
+async def update_payroll_record(request: Request, payroll_id: str, payroll_update: PayrollUpdate):
+    """
+    Update a payroll record.
+    Recalculates totals if compensation or deduction fields are updated.
+    
+    Args:
+        request: Request object with organization context
+        payroll_id: Payroll record ID to update
+        payroll_update: Update data
+    """
+    if not ObjectId.is_valid(payroll_id):
+        raise HTTPException(status_code=400, detail="Invalid payroll ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify record exists and belongs to organization
+    existing_record = await payroll_records_collection.find_one({
+        "_id": ObjectId(payroll_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_record:
+        raise HTTPException(status_code=404, detail="Payroll record not found")
+    
+    # Build update document
+    update_dict = payroll_update.model_dump(exclude_none=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    # Recalculate if any compensation or deduction fields are updated
+    needs_recalculation = any(key in update_dict for key in [
+        "base_salary", "overtime_hours", "overtime_rate", "bonus", "commission",
+        "tax_deduction", "health_insurance", "retirement_contribution", "other_deductions"
+    ])
+    
+    if needs_recalculation:
+        # Get current values
+        base_salary = update_dict.get("base_salary", existing_record.get("base_salary", 0))
+        overtime_hours = update_dict.get("overtime_hours", existing_record.get("overtime_hours", 0))
+        overtime_rate = update_dict.get("overtime_rate", existing_record.get("overtime_rate", 0))
+        bonus = update_dict.get("bonus", existing_record.get("bonus", 0))
+        commission = update_dict.get("commission", existing_record.get("commission", 0))
+        tax_deduction = update_dict.get("tax_deduction", existing_record.get("tax_deduction", 0))
+        health_insurance = update_dict.get("health_insurance", existing_record.get("health_insurance", 0))
+        retirement_contribution = update_dict.get("retirement_contribution", existing_record.get("retirement_contribution", 0))
+        other_deductions = update_dict.get("other_deductions", existing_record.get("other_deductions", 0))
+        
+        # Recalculate
+        overtime_pay = overtime_hours * overtime_rate
+        gross_pay = base_salary + overtime_pay + bonus + commission
+        total_deductions = tax_deduction + health_insurance + retirement_contribution + other_deductions
+        net_pay = gross_pay - total_deductions
+        
+        update_dict["overtime_pay"] = overtime_pay
+        update_dict["gross_pay"] = gross_pay
+        update_dict["total_deductions"] = total_deductions
+        update_dict["net_pay"] = net_pay
+    
+    # Always update the updated_at timestamp
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    # Update the record
+    await payroll_records_collection.update_one(
+        {"_id": ObjectId(payroll_id)},
+        {"$set": update_dict}
+    )
+    
+    # Fetch updated record
+    updated_record = await payroll_records_collection.find_one({"_id": ObjectId(payroll_id)})
+    
+    return PayrollResponse(
+        id=str(updated_record["_id"]),
+        organization_id=updated_record["organization_id"],
+        employee_id=updated_record["employee_id"],
+        employee_name=updated_record["employee_name"],
+        employee_email=updated_record["employee_email"],
+        department=updated_record.get("department"),
+        position=updated_record.get("position"),
+        pay_period_start=updated_record["pay_period_start"],
+        pay_period_end=updated_record["pay_period_end"],
+        payment_date=updated_record["payment_date"],
+        base_salary=updated_record["base_salary"],
+        overtime_hours=updated_record["overtime_hours"],
+        overtime_rate=updated_record["overtime_rate"],
+        overtime_pay=updated_record["overtime_pay"],
+        bonus=updated_record["bonus"],
+        commission=updated_record["commission"],
+        tax_deduction=updated_record["tax_deduction"],
+        health_insurance=updated_record["health_insurance"],
+        retirement_contribution=updated_record["retirement_contribution"],
+        other_deductions=updated_record["other_deductions"],
+        gross_pay=updated_record["gross_pay"],
+        total_deductions=updated_record["total_deductions"],
+        net_pay=updated_record["net_pay"],
+        status=updated_record["status"],
+        payment_method=updated_record["payment_method"],
+        bank_account_last4=updated_record.get("bank_account_last4"),
+        notes=updated_record.get("notes"),
+        approved_by=updated_record.get("approved_by"),
+        approved_at=updated_record.get("approved_at"),
+        created_at=updated_record["created_at"],
+        updated_at=updated_record["updated_at"],
+        created_by=updated_record.get("created_by")
+    )
+
+@app.delete("/payroll/{payroll_id}")
+async def delete_payroll_record(request: Request, payroll_id: str):
+    """
+    Delete a payroll record.
+    Only draft records can be deleted.
+    
+    Args:
+        request: Request object with organization context
+        payroll_id: Payroll record ID to delete
+    """
+    if not ObjectId.is_valid(payroll_id):
+        raise HTTPException(status_code=400, detail="Invalid payroll ID")
+    
+    organization_id = request.state.organization_id
+    
+    # Verify record exists and belongs to organization
+    existing_record = await payroll_records_collection.find_one({
+        "_id": ObjectId(payroll_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_record:
+        raise HTTPException(status_code=404, detail="Payroll record not found")
+    
+    # Only allow deletion of draft records
+    if existing_record.get("status") != "Draft":
+        raise HTTPException(
+            status_code=400,
+            detail="Only draft payroll records can be deleted"
+        )
+    
+    # Delete the record
+    await payroll_records_collection.delete_one({"_id": ObjectId(payroll_id)})
+    
+    return {"message": "Payroll record deleted successfully", "id": payroll_id}
+
+@app.patch("/payroll/{payroll_id}/approve")
+async def approve_payroll_record(request: Request, payroll_id: str):
+    """
+    Approve a payroll record.
+    Changes status from Draft/Pending to Approved.
+    
+    Args:
+        request: Request object with organization context
+        payroll_id: Payroll record ID to approve
+    """
+    if not ObjectId.is_valid(payroll_id):
+        raise HTTPException(status_code=400, detail="Invalid payroll ID")
+    
+    organization_id = request.state.organization_id
+    user_id = request.state.user_id
+    
+    # Verify record exists and belongs to organization
+    existing_record = await payroll_records_collection.find_one({
+        "_id": ObjectId(payroll_id),
+        "organization_id": organization_id
+    })
+    
+    if not existing_record:
+        raise HTTPException(status_code=404, detail="Payroll record not found")
+    
+    # Update status to Approved
+    await payroll_records_collection.update_one(
+        {"_id": ObjectId(payroll_id)},
+        {"$set": {
+            "status": "Approved",
+            "approved_by": user_id,
+            "approved_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    return {"message": "Payroll record approved successfully", "id": payroll_id}
+
+
+
 
 
 if __name__ == "__main__":
